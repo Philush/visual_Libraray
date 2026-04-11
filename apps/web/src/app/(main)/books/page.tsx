@@ -18,6 +18,7 @@ import { BookFilters } from '@/components/books/BookFilters';
 import { BookRow } from '@/components/books/BookRow';
 import { AddBookModal } from '@/features/books/AddBookModal';
 import { EditBookModal } from '@/features/books/EditBookModal';
+import { ImportExportPanel } from '@/features/books/ImportExportPanel';
 import { useBooks } from '@/hooks/useBooks';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { GetBooksParams } from '@/lib/api/books';
@@ -62,10 +63,13 @@ export default function BooksPage() {
             {total > 0 ? `${total} ${bookWord(total)}` : 'Библиотека пока пустая'}
           </p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
-          <Plus className="w-4 h-4" />
-          Добавить книгу
-        </Button>
+        <div className="flex items-center gap-3">
+          <ImportExportPanel />
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-4 h-4" />
+            Добавить книгу
+          </Button>
+        </div>
       </div>
 
       {/* Фильтры */}
