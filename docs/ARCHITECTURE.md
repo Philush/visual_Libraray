@@ -132,13 +132,14 @@ Docker Compose запускает PostgreSQL. Frontend и Backend запуска
 
 ### Продакшн (MVP)
 
-- **Платформа:** Railway или Render
-- **БД:** Managed PostgreSQL (Railway / Supabase)
-- **CI/CD:** GitHub Actions (lint + build + deploy)
+Весь стек запускается через Docker Compose на любом VPS (Ubuntu 22.04+):
+- **Сервисы:** postgres, migrate (one-shot), api, web, nginx
+- **Reverse proxy:** Nginx → `/api/*` → api:3001, `/` → web:3000
+- **Запуск:** `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
+- Подробная инструкция → [docs/DEPLOYMENT.md](./DEPLOYMENT.md)
 
 ### Будущее (при росте)
 
-- Миграция на VPS (Hetzner / DigitalOcean)
 - Добавление Redis для кэширования и сессий
 - PostGIS для геопространственного поиска
 - CDN для обложек книг

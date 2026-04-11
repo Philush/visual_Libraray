@@ -12,6 +12,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   getBookcases,
   getBookcase,
@@ -47,8 +48,11 @@ export function useCreateBookcase() {
   return useMutation({
     mutationFn: (data: CreateBookcasePayload) => createBookcase(data),
     onSuccess: () => {
-      // Инвалидируем список шкафов — Sidebar и LibraryPage перезагрузятся
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcases });
+      toast.success('Шкаф создан');
+    },
+    onError: () => {
+      toast.error('Не удалось создать шкаф');
     },
   });
 }
@@ -62,6 +66,10 @@ export function useUpdateBookcase(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcases });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(id) });
+      toast.success('Шкаф обновлён');
+    },
+    onError: () => {
+      toast.error('Не удалось обновить шкаф');
     },
   });
 }
@@ -74,8 +82,11 @@ export function useDeleteBookcase() {
     mutationFn: (id: string) => deleteBookcase(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcases });
-      // Инвалидируем книги — некоторые могут стать unplaced
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Шкаф удалён');
+    },
+    onError: () => {
+      toast.error('Не удалось удалить шкаф');
     },
   });
 }

@@ -5,6 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { getBooks, getBook, createBook, updateBook, deleteBook, type GetBooksParams } from '@/lib/api/books';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { CreateBookPayload } from '@visual-library/types';
@@ -35,6 +36,10 @@ export function useCreateBook() {
     mutationFn: (data: CreateBookPayload) => createBook(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Книга добавлена в каталог');
+    },
+    onError: () => {
+      toast.error('Не удалось добавить книгу');
     },
   });
 }
@@ -48,6 +53,10 @@ export function useUpdateBook(id: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.book(id) });
+      toast.success('Данные книги сохранены');
+    },
+    onError: () => {
+      toast.error('Не удалось сохранить изменения');
     },
   });
 }
@@ -60,6 +69,10 @@ export function useDeleteBook() {
     mutationFn: (id: string) => deleteBook(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Книга удалена из каталога');
+    },
+    onError: () => {
+      toast.error('Не удалось удалить книгу');
     },
   });
 }

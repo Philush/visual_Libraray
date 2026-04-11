@@ -11,6 +11,7 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { createPlacement, updatePlacement, deletePlacement } from '@/lib/api/placements';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { CreatePlacementPayload, UpdatePlacementPayload } from '@visual-library/types';
@@ -22,10 +23,12 @@ export function useCreatePlacement(bookcaseId: string) {
   return useMutation({
     mutationFn: (data: CreatePlacementPayload) => createPlacement(data),
     onSuccess: () => {
-      // Обновляем шкаф — новая книга появляется на полке
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(bookcaseId) });
-      // Обновляем список книг — книга уходит из "unplaced"
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Книга поставлена на полку');
+    },
+    onError: () => {
+      toast.error('Не удалось поставить книгу на полку');
     },
   });
 }
@@ -40,6 +43,10 @@ export function useUpdatePlacement(bookcaseId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(bookcaseId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Книга перемещена');
+    },
+    onError: () => {
+      toast.error('Не удалось переместить книгу');
     },
   });
 }
@@ -53,6 +60,10 @@ export function useDeletePlacement(bookcaseId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(bookcaseId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Книга убрана с полки');
+    },
+    onError: () => {
+      toast.error('Не удалось убрать книгу с полки');
     },
   });
 }

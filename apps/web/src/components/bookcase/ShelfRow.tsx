@@ -29,7 +29,8 @@ interface ShelfRowProps {
 
 const SHELF_BOARD_HEIGHT = 14;
 
-export function ShelfRow({ shelf, bookcaseId, bookAreaHeight = SPINE_HEIGHT_BASE + 16 }: ShelfRowProps) {
+// +24px: 13px вариация сверху + 6px анимация подъёма + 5px запас
+export function ShelfRow({ shelf, bookcaseId, bookAreaHeight = SPINE_HEIGHT_BASE + 24 }: ShelfRowProps) {
   // useDroppable: регистрируем зону книг как место для сброса.
   // id должен быть уникальным в рамках DndContext.
   // data.current.shelfId используется в onDragEnd BookcaseDndContext.
@@ -94,7 +95,13 @@ export function ShelfRow({ shelf, bookcaseId, bookAreaHeight = SPINE_HEIGHT_BASE
 
           {/* Книги на полке */}
           {shelf.books.map((placement) => (
-            <BookSpine key={placement.id} placement={placement} bookcaseId={bookcaseId} />
+            <BookSpine
+              key={placement.id}
+              placement={placement}
+              bookcaseId={bookcaseId}
+              shelfPosition={shelf.position}
+              shelfLabel={shelf.label}
+            />
           ))}
         </div>
 

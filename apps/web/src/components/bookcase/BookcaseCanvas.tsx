@@ -9,12 +9,13 @@
  * - Боковые стенки шкафа
  *
  * Подход CSS/DOM выбран потому что:
- * 1. Нативный DnD через @dnd-kit (шаг 11)
+ * 1. Нативный DnD через @dnd-kit
  * 2. Accessibility (hover, focus)
  * 3. Простота анимаций через CSS
- * 4. Tooltip без Canvas API
+ * 4. Возможность показывать UI поверх книг
  *
- * На шаге 11 будет добавлен DndContext и DroppableShelf.
+ * DnD реализован в BookcaseDndContext (оборачивает эту компоненту).
+ * ShelfRow регистрирует droppable-зоны, BookSpine — draggable-элементы.
  *
  * Связанные фичи: F-04, F-05
  */

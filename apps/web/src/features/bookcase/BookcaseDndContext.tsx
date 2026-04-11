@@ -28,7 +28,10 @@ import { useState, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
+  PointerSensor,
   pointerWithin,
+  useSensor,
+  useSensors,
   type DragStartEvent,
   type DragEndEvent,
 } from '@dnd-kit/core';
@@ -50,6 +53,14 @@ interface BookcaseDndContextProps {
 export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextProps) {
   // Данные активного перетаскивания — нужны для рендера DragOverlay
   const [activeDrag, setActiveDrag] = useState<ActiveDragData | null>(null);
+
+  // activationConstraint: drag активируется только после 8px движения.
+  // Без этого клик на корешок считается drag-ом и вызывает updatePlacement.
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+  );
 
   const { mutate: createPlacement } = useCreatePlacement(bookcaseId);
   const { mutate: updatePlacement } = useUpdatePlacement(bookcaseId);
@@ -88,6 +99,7 @@ export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextP
 
   return (
     <DndContext
+      sensors={sensors}
       // pointerWithin: полка подсвечивается когда указатель внутри её области.
       // Более интуитивно чем closestCenter для больших drop-зон.
       collisionDetection={pointerWithin}
