@@ -16,7 +16,6 @@ import { useRef, useState } from 'react';
 import { Download, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button } from '@/components/ui';
 import { exportLibrary, importLibrary, type ExportFormat, type JsonImportResult } from '@/lib/api/importExport';
 
 export function ImportExportPanel() {
@@ -107,7 +106,7 @@ export function ImportExportPanel() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2 px-3 bg-gray-50 border border-gray-200 rounded-lg">
       {/* Скрытый input для выбора файла */}
       <input
         ref={fileInputRef}
@@ -117,46 +116,48 @@ export function ImportExportPanel() {
         onChange={handleFileChange}
       />
 
-      {/* Кнопка импорта */}
-      <div className="flex items-center gap-1.5">
+      {/* Импорт */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Импорт</span>
         <select
           value={onDuplicate}
           onChange={(e) => setOnDuplicate(e.target.value as 'skip' | 'update')}
-          className="text-xs border border-gray-200 rounded-md px-2 py-1.5 text-gray-600 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500"
+          className="text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-600 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-amber-500"
           title="Что делать с дублями при импорте"
           disabled={importing}
         >
-          <option value="skip">Дубли: пропустить</option>
-          <option value="update">Дубли: обновить</option>
+          <option value="skip">дубли: пропустить</option>
+          <option value="update">дубли: обновить</option>
         </select>
-
-        <Button
-          variant="ghost"
+        <button
           onClick={() => fileInputRef.current?.click()}
           disabled={importing}
-          className="flex items-center gap-1.5 text-sm"
+          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40 font-medium"
         >
-          <Upload className="w-3.5 h-3.5" />
-          {importing ? 'Импорт…' : 'Импорт'}
-        </Button>
+          <Upload className="w-3 h-3" />
+          {importing ? 'Загрузка…' : 'Выбрать файл'}
+        </button>
       </div>
 
       {/* Разделитель */}
-      <div className="h-4 w-px bg-gray-200" />
+      <div className="h-4 w-px bg-gray-300" />
 
-      {/* Кнопки экспорта */}
-      <div className="flex items-center gap-1">
-        {(['csv', 'xlsx', 'json'] as ExportFormat[]).map((fmt) => (
-          <button
-            key={fmt}
-            onClick={() => handleExport(fmt)}
-            disabled={exporting !== null}
-            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-md text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors disabled:opacity-40 font-medium"
-          >
-            <Download className="w-3 h-3" />
-            {fmt.toUpperCase()}
-          </button>
-        ))}
+      {/* Экспорт */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Экспорт</span>
+        <div className="flex items-center gap-1">
+          {(['csv', 'xlsx', 'json'] as ExportFormat[]).map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => handleExport(fmt)}
+              disabled={exporting !== null}
+              className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40 font-medium"
+            >
+              <Download className="w-3 h-3" />
+              {exporting === fmt ? '…' : fmt.toUpperCase()}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

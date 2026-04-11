@@ -63,13 +63,15 @@ export default function BooksPage() {
             {total > 0 ? `${total} ${bookWord(total)}` : 'Библиотека пока пустая'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <ImportExportPanel />
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4" />
-            Добавить книгу
-          </Button>
-        </div>
+        <Button onClick={() => setIsAddModalOpen(true)}>
+          <Plus className="w-4 h-4" />
+          Добавить книгу
+        </Button>
+      </div>
+
+      {/* Импорт / Экспорт */}
+      <div className="mb-4">
+        <ImportExportPanel />
       </div>
 
       {/* Фильтры */}
