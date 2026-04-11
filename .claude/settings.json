@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/philush/Desktop/tg_bots/visualLibrary/*.yml /Users/philush/Desktop/tg_bots/visualLibrary/*.conf /Users/philush/Desktop/tg_bots/visualLibrary/.env* /Users/philush/Desktop/tg_bots/visualLibrary/.docker*)",
+      "Bash(pnpm --filter @visual-library/web run build)",
+      "Bash(lsof -i :3000,:3001,:5432 -sTCP:LISTEN)",
+      "Bash(awk 'NR==1 || /LISTEN/ {print $1, $2, $9}')",
+      "Bash(lsof -i :3000 -sTCP:LISTEN)",
+      "Bash(docker compose:*)",
+      "Bash(NODE_ENV=development node dist/main.js)",
+      "Bash(echo \"API PID: $!\")"
+    ]
+  }
+}

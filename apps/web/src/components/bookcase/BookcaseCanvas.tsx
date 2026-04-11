@@ -61,7 +61,7 @@ export function BookcaseCanvas({ bookcase }: BookcaseCanvasProps) {
         >
           {shelves.map((shelf) => (
             <div key={shelf.id} style={{ marginBottom: `${SHELF_GAP}px` }}>
-              <ShelfRow shelf={shelf} />
+              <ShelfRow shelf={shelf} bookcaseId={bookcase.id} />
             </div>
           ))}
         </div>

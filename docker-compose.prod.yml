@@ -1,0 +1,107 @@
+version: '3.9'
+
+# Production-конфигурация: все сервисы в Docker.
+# Запуск: docker compose -f docker-compose.prod.yml up -d --build
+#
+# Перед первым запуском скопируй .env.prod.example в .env.prod
+# и заполни переменные.
+
+services:
+
+  # ─── База данных ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: vl_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Порт НЕ пробрасывается наружу — доступен только внутри сети Docker
+    expose:
+      - '5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Миграции ─────────────────────────────────────────────────────────────
+  # Запускается один раз при старте, потом завершается (exit 0)
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vl_migrate
+    # prisma лежит в /app/node_modules/.bin/ (скопирован из builder)
+    command: ['sh', '-c', 'node /app/node_modules/.bin/prisma db push --schema=/app/apps/api/prisma/schema.prisma --skip-generate']
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  # ─── Backend API ──────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: vl_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: 3001
+      NODE_ENV: production
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    expose:
+      - '3001'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/api/v1/bookcases || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── Frontend ─────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # NEXT_PUBLIC_API_URL бакается в JS-бандл во время сборки образа.
+        # При изменении URL нужно пересобрать образ (--build).
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    container_name: vl_web
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    expose:
+      - '3000'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ─── Nginx reverse proxy ──────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: vl_nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+      - api
+
+volumes:
+  postgres_data:
+    driver: local

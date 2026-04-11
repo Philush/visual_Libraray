@@ -67,7 +67,15 @@ export class PlacementsService {
   /**
    * Перемещает книгу: другая полка или другая позиция на той же полке.
    *
-   * Все изменения позиций транзакционны — промежуточных состояний нет.
+   * Алгоритм (транзакционный):
+   * 1. Удаляем текущий placement (книга временно "без полки")
+   * 2. Нормализуем позиции на старой полке (соседи сдвигаются влево)
+   * 3. Определяем целевую позицию (конец полки если не указана)
+   * 4. Сдвигаем книги на целевой полке вправо
+   * 5. Создаём новый placement
+   *
+   * Порядок важен: нельзя сдвигать соседей пока книга ещё на старой позиции —
+   * это нарушало бы UNIQUE(shelfId, position).
    */
   async update(id: string, dto: UpdatePlacementDto) {
     const placement = await this.prisma.bookPlacement.findUnique({ where: { id } });
@@ -82,33 +90,38 @@ export class PlacementsService {
       await this.ensureShelfExists(dto.shelfId);
     }
 
+    const { bookId } = placement;
+
     return this.prisma.$transaction(async (tx) => {
-      // Освобождаем старую позицию (сдвигаем соседей влево)
+      // Шаг 1: удаляем текущий placement — книга временно «без полки»
+      await tx.bookPlacement.delete({ where: { id } });
+
+      // Шаг 2: нормализуем позиции на старой полке (сдвигаем соседей влево)
       await tx.bookPlacement.updateMany({
         where: { shelfId: placement.shelfId, position: { gt: placement.position } },
         data: { position: { decrement: 1 } },
       });
 
-      // Определяем новую позицию
+      // Шаг 3: определяем новую позицию
       let newPosition = targetPosition;
       if (!newPosition) {
         const lastBook = await tx.bookPlacement.findFirst({
-          where: { shelfId: targetShelfId, id: { not: id } },
+          where: { shelfId: targetShelfId },
           orderBy: { position: 'desc' },
           select: { position: true },
         });
         newPosition = (lastBook?.position ?? 0) + 1;
       }
 
-      // Освобождаем целевую позицию (сдвигаем соседей вправо)
+      // Шаг 4: освобождаем целевую позицию (сдвигаем соседей вправо)
       await tx.bookPlacement.updateMany({
-        where: { shelfId: targetShelfId, position: { gte: newPosition }, id: { not: id } },
+        where: { shelfId: targetShelfId, position: { gte: newPosition } },
         data: { position: { increment: 1 } },
       });
 
-      return tx.bookPlacement.update({
-        where: { id },
-        data: { shelfId: targetShelfId, position: newPosition },
+      // Шаг 5: создаём новый placement
+      return tx.bookPlacement.create({
+        data: { bookId, shelfId: targetShelfId, position: newPosition },
         include: { book: true, shelf: true },
       });
     });
