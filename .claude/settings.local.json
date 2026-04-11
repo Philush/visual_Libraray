@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew list:*)",
+      "Bash(brew install:*)",
+      "Bash(curl -s http://localhost:3001/api/v1/bookcases)",
+      "Bash(curl -s http://localhost:3001/api/v1/books)",
+      "Bash(curl -s http://localhost:3001/api/v1/bookcases/b4f320f9-a02f-4edf-b16b-5924ec0858ad)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(curl -s http://localhost:3000/_next/static/chunks/0ilzs794v7.t-.css)",
+      "Read(//private/tmp/**)",
+      "Bash(xargs kill:*)",
+      "Bash(curl -s \"http://localhost:3001/api/v1/books?placed=false\")",
+      "Bash(curl -s \"http://localhost:3001/api/v1/books\")",
+      "Bash(curl -sv \"http://localhost:3001/api/v1/books?placed=false\")",
+      "Bash(curl -s \"http://localhost:3001/api/v1/books?placed=false&limit=1\")",
+      "Bash(curl -s \"http://localhost:3001/api/v1/books?placed=true&limit=1\")",
+      "Bash(export PNPM_HOME=\"/Users/philush/Library/pnpm\")",
+      "Bash(export PATH=\"$PNPM_HOME:$PATH\")",
+      "Bash(pnpm --filter @visual-library/api run build)",
+      "Bash(PGPASSWORD=postgres /opt/homebrew/opt/postgresql@17/bin/psql -U postgres -d visual_library -c \"SELECT b.id, b.title, bp.id as placement_id FROM books b LEFT JOIN book_placements bp ON b.id = bp.book_id;\")",
+      "Bash(PGPASSWORD=postgres /opt/homebrew/opt/postgresql@17/bin/psql -U postgres -d visual_library -c 'SELECT b.id, b.title, bp.id as placement_id FROM books b LEFT JOIN book_placements bp ON b.id = bp.\"bookId\";')"
+    ]
+  }
+}

@@ -1,0 +1,134 @@
+// Prisma Schema — Visual Library
+//
+// Единственный источник истины для структуры БД.
+// При изменениях: pnpm --filter api prisma migrate dev --name <описание>
+//
+// Подробное описание таблиц и решений → docs/DATABASE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Книга
+// Существует независимо от полки.
+// Может быть "без полки" (unplaced) — placement будет null.
+// ─────────────────────────────────────────────
+model Book {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String   @db.VarChar(500)
+  author      String   @db.VarChar(500)
+  isbn        String?  @db.VarChar(20)
+  pageCount   Int?
+  coverUrl    String?
+  // HEX цвет корешка (#RRGGBB). Null = генерировать на фронтенде из title+author.
+  spineColor  String?  @db.VarChar(7)
+  genre       String?  @db.VarChar(100)
+  publishYear Int?
+  notes       String?
+  // Метаданные из внешних API (Google Books, Open Library) — F-11.
+  // JSONB позволяет хранить произвольную структуру без миграций.
+  metadata    Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @db.Timestamptz()
+
+  // Опциональная связь с полкой через промежуточную таблицу
+  placement BookPlacement?
+
+  // userId UUID? @db.Uuid — будет добавлен в Phase 2
+  // user   User? @relation(fields: [userId], references: [id])
+
+  @@index([title, author], name: "idx_books_title_author")
+  @@map("books")
+}
+
+// ─────────────────────────────────────────────
+// Книжный шкаф (стеллаж)
+// ─────────────────────────────────────────────
+model Bookcase {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @db.Timestamptz()
+
+  shelves Shelf[]
+
+  // userId UUID? @db.Uuid — будет добавлен в Phase 2
+
+  @@map("bookcases")
+}
+
+// ─────────────────────────────────────────────
+// Полка внутри шкафа
+// position: порядковый номер сверху вниз (1 = верхняя).
+// ─────────────────────────────────────────────
+model Shelf {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookcaseId String   @db.Uuid
+  // Уникальность позиции в рамках шкафа — инвариант на уровне БД
+  position   Int
+  label      String?  @db.VarChar(100)
+  createdAt  DateTime @default(now()) @db.Timestamptz()
+
+  bookcase Bookcase        @relation(fields: [bookcaseId], references: [id], onDelete: Cascade)
+  // При удалении полки — placements удаляются, сами книги остаются
+  books    BookPlacement[]
+
+  @@unique([bookcaseId, position], name: "unique_shelf_position")
+  @@index([bookcaseId], name: "idx_shelves_bookcase_id")
+  @@map("shelves")
+}
+
+// ─────────────────────────────────────────────
+// Размещение книги на полке
+//
+// Ключевые инварианты:
+// 1. Книга → только одна полка (UNIQUE bookId)
+// 2. На одной позиции полки → только одна книга (UNIQUE shelfId+position)
+//
+// Это позволяет:
+// - Книге существовать без полки (unplaced)
+// - Перемещать книгу без изменения самой книги
+// - Реализовывать DnD через UPDATE placement
+// ─────────────────────────────────────────────
+model BookPlacement {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookId    String   @unique @db.Uuid
+  shelfId   String   @db.Uuid
+  // Порядок на полке слева направо (1 = крайняя левая)
+  position  Int
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  book  Book  @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  shelf Shelf @relation(fields: [shelfId], references: [id], onDelete: Cascade)
+
+  @@unique([shelfId, position], name: "unique_placement_position")
+  @@index([shelfId], name: "idx_book_placements_shelf_id")
+  @@map("book_placements")
+}
+
+// ─────────────────────────────────────────────
+// User (Phase 2)
+// Закомментировано — раскомментировать при добавлении авторизации.
+//
+// model User {
+//   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+//   email        String   @unique @db.VarChar(255)
+//   passwordHash String   @db.VarChar(255)
+//   name         String?  @db.VarChar(100)
+//   createdAt    DateTime @default(now()) @db.Timestamptz()
+//   updatedAt    DateTime @updatedAt @db.Timestamptz()
+//
+//   books     Book[]
+//   bookcases Bookcase[]
+//
+//   @@map("users")
+// }
+// ─────────────────────────────────────────────
