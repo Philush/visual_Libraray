@@ -37,7 +37,7 @@
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    Client (Browser)                  │
-│                    Next.js 15 SPA/SSR                │
+│                    Next.js 16 SPA/SSR                │
 │         React + Tailwind + @dnd-kit + Zustand        │
 └──────────────────────┬──────────────────────────────┘
                        │ HTTP/REST (JSON)
@@ -49,10 +49,11 @@
 │   │ Bookcases│ │  Books   │ │   Placements     │   │
 │   │  Module  │ │  Module  │ │     Module       │   │
 │   └──────────┘ └──────────┘ └──────────────────┘   │
-│   ┌──────────┐ ┌──────────┐                         │
-│   │  Users   │ │   Auth   │  ← будущие модули        │
-│   │  Module  │ │  Module  │                         │
-│   └──────────┘ └──────────┘                         │
+│   ┌────────────────────┐ ┌──────────┐ ┌──────────┐ │
+│   │  Import/Export     │ │  Users   │ │   Auth   │ │
+│   │  Module  (F-07)    │ │  Module  │ │  Module  │ │
+│   └────────────────────┘ └──────────┘ └──────────┘ │
+│                           ↑ будущие модули           │
 │                    │                                 │
 │                  Prisma ORM                          │
 └──────────────────────┬──────────────────────────────┘
@@ -111,15 +112,17 @@ prisma/        → схема БД, миграции, Prisma-клиент
 ### Пример: пользователь перетаскивает книгу на полку
 
 ```
-1. UI: @dnd-kit фиксирует drop-событие
-2. Feature/bookcase: вызывает хук usePlaceBook(bookId, shelfId, position)
-3. Zustand store: оптимистично обновляет локальное состояние (мгновенный отклик UI)
-4. API-клиент: POST /api/v1/placements
+1. UI: @dnd-kit фиксирует drop-событие (onDragEnd в BookcaseDndContext)
+2. BookcaseDndContext: определяет источник (spine / unplaced) и цель (shelfId)
+3. Вызывается useCreatePlacement или useUpdatePlacement (TanStack Query mutation)
+4. API-клиент: POST /api/v1/placements или PATCH /api/v1/placements/:id
 5. NestJS PlacementsController → PlacementsService
-6. PlacementsService: валидирует, проверяет конфликты позиций, сохраняет через Prisma
-7. Ответ: 201 Created с объектом placement
-8. TanStack Query: инвалидирует кэш полки → refetch актуального состояния
-9. При ошибке: Zustand откатывает оптимистичное обновление
+6. PlacementsService: в транзакции — delete → normalize positions → create
+   (избегает UNIQUE(shelfId, position) конфликта при перемещении)
+7. Ответ: 201 / 200 с объектом placement
+8. onSuccess: TanStack Query инвалидирует кэш шкафа → refetch → UI обновляется
+9. sonner toast: «Книга поставлена на полку» / «Книга перемещена»
+10. При ошибке: sonner toast с сообщением, UI возвращается в предыдущее состояние
 ```
 
 ---

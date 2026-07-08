@@ -30,7 +30,7 @@ visual-library/
 
 ---
 
-## apps/web — Frontend (Next.js 15)
+## apps/web — Frontend (Next.js 16)
 
 ```
 apps/web/
@@ -38,79 +38,72 @@ apps/web/
 │   ├── app/                        # Next.js App Router
 │   │   ├── layout.tsx              # Root layout (шрифты, провайдеры)
 │   │   ├── page.tsx                # / → редирект на /library
-│   │   ├── library/
-│   │   │   └── page.tsx            # /library → список шкафов + книги без полки
-│   │   ├── bookcases/
-│   │   │   ├── page.tsx            # /bookcases → список всех шкафов
-│   │   │   └── [id]/
-│   │   │       └── page.tsx        # /bookcases/:id → визуализация шкафа
-│   │   └── books/
-│   │       └── page.tsx            # /books → список всех книг
+│   │   └── (main)/                 # Route group — общий layout с навигацией
+│   │       ├── layout.tsx          # Sidebar + Header
+│   │       ├── library/
+│   │       │   └── page.tsx        # /library → список шкафов + книги без полки
+│   │       ├── bookcases/
+│   │       │   └── [id]/
+│   │       │       └── page.tsx    # /bookcases/:id → визуализация шкафа
+│   │       └── books/
+│   │           └── page.tsx        # /books → каталог всех книг
 │   │
 │   ├── components/
-│   │   ├── ui/                     # Базовые UI-компоненты (не содержат бизнес-логику)
+│   │   ├── ui/                     # Базовые UI-компоненты (нет бизнес-логики)
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
+│   │   │   ├── Textarea.tsx
 │   │   │   ├── Modal.tsx
-│   │   │   ├── Select.tsx
-│   │   │   ├── Badge.tsx
 │   │   │   ├── Spinner.tsx
 │   │   │   ├── EmptyState.tsx      # Заглушка для пустых списков
 │   │   │   └── index.ts            # Реэкспорт всех ui-компонентов
 │   │   │
 │   │   ├── bookcase/               # Компоненты визуализации шкафа
-│   │   │   ├── BookcaseView.tsx    # Контейнер шкафа (все полки)
-│   │   │   ├── ShelfRow.tsx        # Одна полка с книгами
-│   │   │   ├── BookSpine.tsx       # Корешок книги (визуальный элемент)
-│   │   │   ├── DroppableShelf.tsx  # Полка как drop-зона (@dnd-kit)
-│   │   │   └── DraggableBook.tsx   # Книга как draggable-элемент
+│   │   │   ├── BookcaseCanvas.tsx  # Контейнер шкафа (список полок + панель unplaced)
+│   │   │   ├── BookcaseCard.tsx    # Карточка шкафа в списке (/library)
+│   │   │   ├── ShelfRow.tsx        # Одна полка — droppable-зона + книги
+│   │   │   ├── BookSpine.tsx       # Корешок книги (draggable, клик → детали)
+│   │   │   └── UnplacedBooksPanel.tsx  # Панель книг без полки (draggable-источник)
 │   │   │
 │   │   ├── books/                  # Компоненты списка книг
-│   │   │   ├── BookCard.tsx        # Карточка книги
-│   │   │   ├── BookRow.tsx         # Строка книги в таблице
-│   │   │   ├── BookForm.tsx        # Форма создания/редактирования книги
-│   │   │   └── BookFilters.tsx     # Панель фильтров и поиска
+│   │   │   ├── BookRow.tsx         # Строка книги в таблице (/books)
+│   │   │   └── BookFilters.tsx     # Панель поиска и фильтрации
 │   │   │
-│   │   └── layout/                 # Компоненты лейаута
-│   │       ├── Header.tsx
-│   │       ├── Sidebar.tsx
-│   │       └── PageContainer.tsx
+│   │   ├── layout/                 # Компоненты лейаута
+│   │   │   ├── Header.tsx
+│   │   │   └── Sidebar.tsx
+│   │   │
+│   │   └── providers.tsx           # QueryClient + Toaster (sonner)
 │   │
-│   ├── features/                   # Feature-модули (логика + компоненты конкретной фичи)
+│   ├── features/                   # Feature-модули (бизнес-логика + компоненты фичи)
 │   │   ├── bookcase/               # F-01, F-04, F-05
-│   │   │   ├── BookcaseManager.tsx # Создание/удаление шкафов
-│   │   │   ├── BookcaseCanvas.tsx  # Полная страница визуализации
-│   │   │   └── useDragAndDrop.ts   # Хук логики DnD для шкафа
+│   │   │   ├── BookcaseDndContext.tsx  # DndContext, sensors, onDragEnd, DragOverlay
+│   │   │   ├── BookDetailModal.tsx    # Детали книги при клике на корешок (UX-02)
+│   │   │   └── CreateBookcaseModal.tsx # Форма создания шкафа
 │   │   │
-│   │   ├── books/                  # F-02, F-06
-│   │   │   ├── BookLibrary.tsx     # Страница со списком книг
-│   │   │   └── useBookSearch.ts    # Хук поиска и фильтрации
-│   │   │
-│   │   └── import-export/          # F-07
-│   │       ├── ImportButton.tsx
-│   │       ├── ExportButton.tsx
-│   │       └── useImportExport.ts
+│   │   └── books/                  # F-02, F-06, F-07
+│   │       ├── AddBookModal.tsx    # Форма добавления книги
+│   │       ├── EditBookModal.tsx   # Форма редактирования книги
+│   │       └── ImportExportPanel.tsx  # Панель импорта/экспорта (CSV, XLSX, JSON)
 │   │
-│   ├── store/                      # Zustand stores (только UI-состояние)
-│   │   ├── uiStore.ts              # Глобальное UI-состояние (открытые модалки, активный шкаф)
-│   │   └── dragStore.ts            # Состояние drag & drop
-│   │
-│   ├── hooks/                      # Переиспользуемые React-хуки
-│   │   ├── useBookcases.ts         # TanStack Query хуки для шкафов
-│   │   ├── useBooks.ts             # TanStack Query хуки для книг
-│   │   ├── usePlacements.ts        # TanStack Query хуки для размещений
-│   │   └── useDebounce.ts          # Утилитный хук для debounce поиска
+│   ├── hooks/                      # TanStack Query хуки
+│   │   ├── useBookcases.ts         # CRUD шкафов + toast-уведомления
+│   │   ├── useBooks.ts             # CRUD книг + toast-уведомления
+│   │   ├── usePlacements.ts        # Placement мутации + toast-уведомления
+│   │   └── useDebounce.ts          # Debounce для поискового инпута
 │   │
 │   └── lib/                        # Утилиты и инфраструктура
 │       ├── api/
-│       │   ├── client.ts           # Базовый fetch-клиент (обёртка над fetch)
-│       │   ├── bookcases.ts        # API-методы для шкафов
+│       │   ├── client.ts           # Базовый fetch-клиент с единой обработкой ошибок
+│       │   ├── bookcases.ts        # API-методы для шкафов и полок
 │       │   ├── books.ts            # API-методы для книг
 │       │   ├── placements.ts       # API-методы для размещений
-│       │   └── importExport.ts     # API-методы для импорта/экспорта
+│       │   └── importExport.ts     # exportLibrary() / importLibrary() — blob download + multipart
 │       ├── utils/
-│       │   ├── spineColor.ts       # Детерминированная генерация цвета корешка
-│       │   ├── spineWidth.ts       # Вычисление ширины корешка из pageCount
+│       │   ├── spineColor.ts       # Детерминированная генерация HEX-цвета корешка
+│       │   ├── spineWidth.ts       # Ширина корешка из pageCount (узкий/средний/широкий)
+│       │   ├── spineHeight.ts      # Высота корешка из длины названия
+│       │   ├── contrastColor.ts    # Цвет текста (белый/чёрный) по фону корешка
 │       │   └── cn.ts               # Утилита для классов (clsx + tailwind-merge)
 │       └── constants.ts            # Константы приложения
 │
@@ -118,9 +111,7 @@ apps/web/
 │   └── favicon.ico
 │
 ├── .env.local                      # Локальные переменные (не в git)
-├── .env.example                    # Пример переменных
-├── next.config.ts
-├── tailwind.config.ts
+├── next.config.ts                  # output: standalone, remotePatterns
 ├── tsconfig.json
 ├── eslint.config.mjs
 └── package.json
@@ -167,8 +158,8 @@ apps/api/
 │   │   └── import-export/          # Импорт/экспорт (F-07)
 │   │       ├── import-export.module.ts
 │   │       ├── import-export.controller.ts
-│   │       ├── import.service.ts         # Логика импорта CSV/JSON
-│   │       └── export.service.ts         # Логика экспорта CSV/JSON
+│   │       ├── import.service.ts         # Логика импорта CSV/XLSX/JSON
+│   │       └── export.service.ts         # Логика экспорта CSV/XLSX/JSON
 │   │
 │   ├── shared/                     # Общий код для всех модулей
 │   │   ├── filters/

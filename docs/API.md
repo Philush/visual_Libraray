@@ -357,36 +357,72 @@
 
 ## Import/Export — Импорт и Экспорт
 
+Все эндпоинты реализованы в рамках F-07.
+Шаблоны файлов для импорта: `docs/templates/import-template.{csv,xlsx}`.
+
+---
+
 ### GET /export/csv
 
-Экспортировать все книги в CSV.
+Скачать все книги в CSV (UTF-8 с BOM для корректного открытия в Excel).
 
-**Query params:**
-- `placed` — `true` | `false` — экспортировать только размещённые/без полки
+**Query params:** нет
 
 **Response 200:**
 ```
-Content-Type: text/csv
-Content-Disposition: attachment; filename="library-export-2024-01-15.csv"
+Content-Type: text/csv; charset=utf-8
+Content-Disposition: attachment; filename="library-2026-07-08.csv"
 
-title,author,isbn,pageCount,genre,publishYear,notes,bookcaseName,shelfPosition
-"Мастер и Маргарита","Михаил Булгаков","978-5-17-090297-5",480,"Классика",1967,"","Шкаф в гостиной",2
+Название,Автор,ISBN,Страниц,Жанр,Год издания,Заметки,Цвет корешка
+"Мастер и Маргарита","Михаил Булгаков","978-5-17-090297-5",480,"Классика",1967,"",#8B4513
+```
+
+---
+
+### GET /export/xlsx
+
+Скачать все книги в XLSX (стилизованный заголовок, фиксированная первая строка).
+
+**Response 200:**
+```
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="library-2026-07-08.xlsx"
 ```
 
 ---
 
 ### GET /export/json
 
-Экспортировать полную библиотеку в JSON (включая расположение).
+Скачать полный снапшот библиотеки — книги + расположение на полках.
+Используется для резервного копирования и восстановления через `/import/json`.
 
 **Response 200:**
 ```json
 {
-  "exportedAt": "2024-01-15T10:00:00Z",
-  "version": "1.0",
-  "bookcases": [...],
-  "books": [...],
-  "placements": [...]
+  "version": 1,
+  "exportedAt": "2026-07-08T10:00:00.000Z",
+  "books": [
+    {
+      "title": "Мастер и Маргарита",
+      "author": "Михаил Булгаков",
+      "isbn": "978-5-17-090297-5",
+      "pageCount": 480,
+      "genre": "Классика",
+      "publishYear": 1967,
+      "notes": null,
+      "spineColor": "#8B4513",
+      "coverUrl": null
+    }
+  ],
+  "placements": [
+    {
+      "bookTitle": "Мастер и Маргарита",
+      "bookAuthor": "Михаил Булгаков",
+      "bookcaseName": "Шкаф в гостиной",
+      "shelfPosition": 2,
+      "shelfLabel": null
+    }
+  ]
 }
 ```
 
@@ -394,38 +430,64 @@ title,author,isbn,pageCount,genre,publishYear,notes,bookcaseName,shelfPosition
 
 ### POST /import/csv
 
-Импортировать книги из CSV.
+Импортировать книги из CSV-файла. Книги помещаются в «без полки».
 
 **Request:** `multipart/form-data`
-- `file` — CSV файл (max 10MB)
-- `onDuplicate` — `skip` | `update` (default: `skip`)
+- `file` — CSV файл (поле `file`)
+- `?onDuplicate=skip|update` — что делать с дублями по title+author (default: `skip`)
+
+Поддерживает как русские заголовки (из шаблона), так и английские ключи.
+Обязательные поля: `Название` / `title`, `Автор` / `author`.
 
 **Response 200:**
 ```json
 {
-  "imported": 45,
-  "skipped": 3,
+  "created": 42,
+  "updated": 3,
+  "skipped": 5,
   "errors": [
-    { "row": 12, "message": "Пустое поле title" }
+    "Строка 7: пропущены обязательные поля «Название» / «Автор»"
   ]
 }
 ```
 
 ---
 
+### POST /import/xlsx
+
+Импортировать книги из XLSX-файла. Логика идентична CSV-импорту.
+
+**Request:** `multipart/form-data`, поле `file`, `?onDuplicate=skip|update`
+
+**Response 200:** аналогично `/import/csv`
+
+---
+
 ### POST /import/json
 
-Восстановить библиотеку из JSON-бэкапа.
+Восстановить библиотеку из JSON-снапшота (формат `/export/json`).
+Создаёт книги и размещает их на полках (если шкаф/полка с совпадающим именем существуют).
 
 **Request:** `multipart/form-data`
-- `file` — JSON файл
-- `mode` — `merge` | `replace` (default: `merge`)
+- `file` — JSON файл (поле `file`)
+- `?onDuplicate=skip|update` — стратегия для дублей книг (default: `skip`)
 
 **Response 200:**
 ```json
 {
-  "bookcasesImported": 3,
-  "booksImported": 142,
-  "placementsImported": 98
+  "books": {
+    "created": 138,
+    "updated": 4,
+    "skipped": 0,
+    "errors": []
+  },
+  "placements": {
+    "created": 95,
+    "skipped": 3,
+    "errors": []
+  }
 }
 ```
+
+Placement пропускается (skipped) если: книга не найдена, шкаф не найден,
+полка с нужной позицией не найдена, или книга уже размещена.
