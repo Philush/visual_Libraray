@@ -8,11 +8,13 @@
  * Связанные фичи: F-02
  */
 
-import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
-import { Modal, Button, Input, Textarea } from '@/components/ui';
-import { useUpdateBook, useDeleteBook } from '@/hooks/useBooks';
+import { useState, useEffect, useRef } from 'react';
+import { Trash2, ImagePlus, X } from 'lucide-react';
+import { Modal, Button, Input, Textarea, StarRating, AutocompleteInput } from '@/components/ui';
+import { useUpdateBook, useDeleteBook, useBookAuthors, useBookGenres } from '@/hooks/useBooks';
 import { generateSpineColor } from '@/lib/utils/spineColor';
+import { uploadBookCover } from '@/lib/api/books';
+import { toast } from 'sonner';
 import type { BookWithPlacement } from '@visual-library/types';
 
 interface EditBookModalProps {
@@ -28,13 +30,20 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
   const [genre, setGenre] = useState('');
   const [publishYear, setPublishYear] = useState('');
   const [notes, setNotes] = useState('');
+  const [rating, setRating] = useState(0);
+  const [coverUrl, setCoverUrl] = useState('');
+  const [coverPreview, setCoverPreview] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { mutate: updateBook, isPending: isUpdating } = useUpdateBook(book?.id ?? '');
   const { mutate: deleteBook, isPending: isDeleting } = useDeleteBook();
+  const { data: authors = [] } = useBookAuthors();
+  const { data: genres = [] } = useBookGenres();
 
-  // Заполняем форму данными книги при открытии
   useEffect(() => {
     if (book) {
       setTitle(book.title);
@@ -44,6 +53,9 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
       setGenre(book.genre ?? '');
       setPublishYear(book.publishYear ? String(book.publishYear) : '');
       setNotes(book.notes ?? '');
+      setRating(book.rating ?? 0);
+      setCoverUrl(book.coverUrl ?? '');
+      setCoverPreview(book.coverUrl ?? '');
       setErrors({});
       setConfirmDelete(false);
     }
@@ -60,6 +72,29 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
       newErrors.publishYear = 'Введите корректный год';
     }
     return newErrors;
+  };
+
+  const handleCoverChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCoverPreview(URL.createObjectURL(file));
+    setIsUploading(true);
+    try {
+      const result = await uploadBookCover(file);
+      setCoverUrl(result.coverUrl);
+    } catch {
+      toast.error('Не удалось загрузить обложку');
+      setCoverPreview(book?.coverUrl ?? '');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const removeCover = () => {
+    setCoverUrl('');
+    setCoverPreview('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,6 +115,8 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
         publishYear: publishYear ? Number(publishYear) : undefined,
         notes: notes.trim() || undefined,
         spineColor: generateSpineColor(title.trim(), author.trim()),
+        rating,
+        coverUrl: coverUrl || undefined,
       },
       { onSuccess: onClose },
     );
@@ -107,10 +144,11 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
           </div>
 
           <div className="sm:col-span-2">
-            <Input
+            <AutocompleteInput
               label="Автор"
               value={author}
-              onChange={(e) => { setAuthor(e.target.value); setErrors(prev => ({ ...prev, author: '' })); }}
+              onChange={(v) => { setAuthor(v); setErrors(prev => ({ ...prev, author: '' })); }}
+              suggestions={authors}
               error={errors.author}
               required
               maxLength={500}
@@ -133,10 +171,11 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
             min={1}
           />
 
-          <Input
+          <AutocompleteInput
             label="Жанр"
             value={genre}
-            onChange={(e) => setGenre(e.target.value)}
+            onChange={setGenre}
+            suggestions={genres}
             maxLength={100}
           />
 
@@ -158,6 +197,51 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
           rows={3}
           maxLength={2000}
         />
+
+        {/* Рейтинг */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-gray-700">Рейтинг</span>
+          <StarRating value={rating} onChange={setRating} />
+        </div>
+
+        {/* Обложка */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-gray-700">Обложка</span>
+          {coverPreview ? (
+            <div className="relative w-20 h-28">
+              <img src={coverPreview} alt="Обложка" className="w-full h-full object-cover rounded-md shadow-sm" />
+              <button
+                type="button"
+                onClick={removeCover}
+                className="absolute -top-1.5 -right-1.5 bg-white border border-gray-200 rounded-full p-0.5 shadow hover:bg-gray-50"
+              >
+                <X className="w-3 h-3 text-gray-600" />
+              </button>
+              {isUploading && (
+                <div className="absolute inset-0 bg-white/70 rounded-md flex items-center justify-center">
+                  <span className="text-xs text-gray-500">Загрузка…</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-2 w-fit text-sm text-gray-500 hover:text-gray-700 border border-dashed border-gray-300 hover:border-gray-400 rounded-md px-3 py-2 transition-colors disabled:opacity-50"
+            >
+              <ImagePlus className="w-4 h-4" />
+              Загрузить обложку
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverChange}
+          />
+        </div>
 
         {/* Превью цвета корешка */}
         {(title || author) && (
@@ -203,10 +287,10 @@ export function EditBookModal({ book, onClose }: EditBookModalProps) {
           )}
 
           <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={isUpdating}>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={isUpdating || isUploading}>
               Отмена
             </Button>
-            <Button type="submit" isLoading={isUpdating}>
+            <Button type="submit" isLoading={isUpdating} disabled={isUploading}>
               Сохранить
             </Button>
           </div>

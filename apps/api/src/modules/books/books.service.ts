@@ -105,6 +105,25 @@ export class BooksService {
     return this.prisma.book.delete({ where: { id } });
   }
 
+  async getAuthors(): Promise<string[]> {
+    const results = await this.prisma.book.findMany({
+      distinct: ['author'],
+      select: { author: true },
+      orderBy: { author: 'asc' },
+    });
+    return results.map((r) => r.author);
+  }
+
+  async getGenres(): Promise<string[]> {
+    const results = await this.prisma.book.findMany({
+      distinct: ['genre'],
+      select: { genre: true },
+      where: { genre: { not: null } },
+      orderBy: { genre: 'asc' },
+    });
+    return results.map((r) => r.genre!);
+  }
+
   private async ensureExists(id: string) {
     const exists = await this.prisma.book.findUnique({ where: { id }, select: { id: true } });
     if (!exists) {

@@ -10,7 +10,7 @@
  */
 
 /** Базовый URL API из переменной окружения */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 
 /** Тип HTTP-ошибки от API */
 export class ApiError extends Error {

@@ -119,6 +119,9 @@ export default function BooksPage() {
                 <th className="py-2.5 pr-4 text-left text-xs font-medium text-gray-500 hidden sm:table-cell">
                   Год
                 </th>
+                <th className="py-2.5 pr-4 text-left text-xs font-medium text-gray-500 hidden lg:table-cell">
+                  Рейтинг
+                </th>
                 <th className="py-2.5 pr-4 text-left text-xs font-medium text-gray-500">
                   Расположение
                 </th>

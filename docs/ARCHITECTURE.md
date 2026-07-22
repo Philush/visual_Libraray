@@ -113,7 +113,9 @@ prisma/        → схема БД, миграции, Prisma-клиент
 
 ```
 1. UI: @dnd-kit фиксирует drop-событие (onDragEnd в BookcaseDndContext)
-2. BookcaseDndContext: определяет источник (spine / unplaced) и цель (shelfId)
+2. BookcaseDndContext определяет тип drop по over.id:
+   - over.id = "shelf-{id}"  → drop на пустую зону полки (в конец)
+   - over.id = "spine-{id}"  → drop на конкретный корешок (с позицией)
 3. Вызывается useCreatePlacement или useUpdatePlacement (TanStack Query mutation)
 4. API-клиент: POST /api/v1/placements или PATCH /api/v1/placements/:id
 5. NestJS PlacementsController → PlacementsService
@@ -124,6 +126,13 @@ prisma/        → схема БД, миграции, Prisma-клиент
 9. sonner toast: «Книга поставлена на полку» / «Книга перемещена»
 10. При ошибке: sonner toast с сообщением, UI возвращается в предыдущее состояние
 ```
+
+### Сортировка внутри полки
+
+Каждая полка оборачивает свои корешки в `SortableContext` с `horizontalListSortingStrategy`.
+`BookSpine` использует `useSortable` вместо `useDraggable` — при перетаскивании соседние
+корешки анимированно раздвигаются. Drop на корешок передаёт `position` целевой книги,
+PATCH-запрос перемещает книгу на эту позицию.
 
 ---
 

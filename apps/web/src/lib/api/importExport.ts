@@ -3,11 +3,9 @@
  *
  * Экспорт: GET-запросы, скачивание файла через blob URL.
  * Импорт: POST-запросы с multipart/form-data, поле "file".
- *
- * Базовый URL берётся из NEXT_PUBLIC_API_URL.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+import { API_BASE_URL as API_BASE } from './client';
 
 export type ExportFormat = 'csv' | 'xlsx' | 'json';
 export type OnDuplicate = 'skip' | 'update';

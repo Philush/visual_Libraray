@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getBooks, getBook, createBook, updateBook, deleteBook, type GetBooksParams } from '@/lib/api/books';
+import { getBooks, getBook, createBook, updateBook, deleteBook, getBookAuthors, getBookGenres, type GetBooksParams } from '@/lib/api/books';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { CreateBookPayload } from '@visual-library/types';
 
@@ -58,6 +58,24 @@ export function useUpdateBook(id: string) {
     onError: () => {
       toast.error('Не удалось сохранить изменения');
     },
+  });
+}
+
+/** Уникальные авторы для автокомплита */
+export function useBookAuthors() {
+  return useQuery({
+    queryKey: ['books', 'authors'],
+    queryFn: getBookAuthors,
+    staleTime: 60_000,
+  });
+}
+
+/** Уникальные жанры для автокомплита */
+export function useBookGenres() {
+  return useQuery({
+    queryKey: ['books', 'genres'],
+    queryFn: getBookGenres,
+    staleTime: 60_000,
   });
 }
 

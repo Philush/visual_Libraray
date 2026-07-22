@@ -230,10 +230,11 @@
       "author": "Михаил Булгаков",
       "isbn": "978-5-17-090297-5",
       "pageCount": 480,
-      "coverUrl": null,
+      "coverUrl": "http://localhost:3001/uploads/covers/1234567890.jpg",
       "spineColor": "#8B4513",
       "genre": "Классика",
       "publishYear": 1967,
+      "rating": 4,
       "placement": {
         "shelfId": "uuid",
         "bookcaseId": "uuid",
@@ -255,6 +256,46 @@
 
 ---
 
+### GET /books/authors
+
+Получить список уникальных авторов из каталога (для автокомплита).
+
+**Response 200:**
+```json
+["Михаил Булгаков", "Эрих Мария Ремарк", "Фёдор Достоевский"]
+```
+
+---
+
+### GET /books/genres
+
+Получить список уникальных жанров из каталога (для автокомплита).
+
+**Response 200:**
+```json
+["Классика", "Фэнтези", "Фантастика"]
+```
+
+---
+
+### POST /books/upload-cover
+
+Загрузить изображение обложки книги. Возвращает URL для последующего сохранения в `coverUrl`.
+
+**Request:** `multipart/form-data`
+- `file` — изображение (JPEG, PNG, WebP и др.), до 5 МБ
+
+**Response 200:**
+```json
+{
+  "coverUrl": "http://localhost:3001/uploads/covers/1721654321-987654321.jpg"
+}
+```
+
+Файл сохраняется в `apps/api/uploads/covers/`. Статика отдаётся по пути `/uploads/covers/{filename}`.
+
+---
+
 ### POST /books
 
 Создать книгу.
@@ -266,11 +307,12 @@
   "author": "Михаил Булгаков",     // required
   "isbn": "978-5-17-090297-5",     // optional
   "pageCount": 480,                // optional, > 0
-  "coverUrl": "https://...",       // optional, valid URL
+  "coverUrl": "http://...",        // optional, любая строка (URL или путь из upload-cover)
   "spineColor": "#8B4513",         // optional, HEX формат
   "genre": "Классика",             // optional
   "publishYear": 1967,             // optional, 1000-currentYear
-  "notes": "Перечитать летом"      // optional, max 2000 символов
+  "notes": "Перечитать летом",     // optional, max 2000 символов
+  "rating": 4                      // optional, 0–5
 }
 ```
 

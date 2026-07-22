@@ -1,14 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import { mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Создаём директорию для обложек если её нет
+  mkdirSync(join(process.cwd(), 'uploads', 'covers'), { recursive: true });
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Глобальный префикс — все эндпоинты доступны через /api/v1/...
   // Версионирование через URI закладывается с первого дня.
   app.setGlobalPrefix('api/v1');
+
+  // Статические файлы — загруженные обложки книг
+  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   // CORS: разрешаем запросы с фронтенда.
   // ALLOWED_ORIGINS задаётся через .env (несколько через запятую).

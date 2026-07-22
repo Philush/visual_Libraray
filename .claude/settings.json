@@ -8,7 +8,14 @@
       "Bash(lsof -i :3000 -sTCP:LISTEN)",
       "Bash(docker compose:*)",
       "Bash(NODE_ENV=development node dist/main.js)",
-      "Bash(echo \"API PID: $!\")"
+      "Bash(echo \"API PID: $!\")",
+      "Bash(pnpm --filter api build)",
+      "Bash(pnpm --filter web build)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(xargs cat)",
+      "Bash(npx prisma *)"
     ]
   }
 }

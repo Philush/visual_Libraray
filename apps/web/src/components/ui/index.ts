@@ -9,3 +9,5 @@ export { Textarea } from './Textarea';
 export { Modal } from './Modal';
 export { Spinner, PageSpinner } from './Spinner';
 export { EmptyState } from './EmptyState';
+export { StarRating } from './StarRating';
+export { AutocompleteInput } from './AutocompleteInput';

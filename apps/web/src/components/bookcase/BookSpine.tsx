@@ -3,10 +3,11 @@
 /**
  * Визуальный корешок книги на полке.
  *
- * Поддерживает drag & drop через @dnd-kit/core:
- * - useDraggable даёт ref, listeners и attributes для захвата
- * - При перетаскивании корешок становится полупрозрачным (opacity 0.4)
- * - DragOverlay рендерит ghost-копию в BookcaseDndContext
+ * Поддерживает drag & drop через @dnd-kit/sortable:
+ * - useSortable совмещает draggable + sortable-анимации внутри полки
+ * - transform из useSortable анимирует соседние корешки при сортировке
+ * - При перетаскивании корешок становится полупрозрачным (opacity 0.35)
+ * - DragOverlay рендерит ghost-копию правильной ширины в BookcaseDndContext
  *
  * Клик по корешку (без перетаскивания) открывает BookDetailModal.
  * Различение клика и drag: отслеживаем isDragging через ref.
@@ -14,15 +15,19 @@
  *
  * Данные drag-элемента (active.data.current):
  *   bookId      — ID книги (для createPlacement)
- *   placementId — ID placement (для updatePlacement при перемещении между полками)
+ *   placementId — ID placement (для updatePlacement при перемещении)
+ *   shelfId     — текущая полка (для определения reorder vs cross-shelf)
+ *   position    — текущая позиция на полке
  *   title       — для DragOverlay
  *   spineColor  — для DragOverlay
+ *   spineWidth  — для DragOverlay (правильная ширина ghost'а)
  *
  * Связанные фичи: F-04, F-05
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useDraggable } from '@dnd-kit/core';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { BookPlacementWithBook } from '@visual-library/types';
 import { generateSpineColor } from '@/lib/utils/spineColor';
 import { getSpineWidth } from '@/lib/utils/spineWidth';
@@ -33,11 +38,12 @@ import { BookDetailModal } from '@/features/bookcase/BookDetailModal';
 interface BookSpineProps {
   placement: BookPlacementWithBook;
   bookcaseId: string;
+  shelfId: string;
   shelfPosition: number;
   shelfLabel: string | null;
 }
 
-export function BookSpine({ placement, bookcaseId, shelfPosition, shelfLabel }: BookSpineProps) {
+export function BookSpine({ placement, bookcaseId, shelfId, shelfPosition, shelfLabel }: BookSpineProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const { book } = placement;
@@ -47,15 +53,19 @@ export function BookSpine({ placement, bookcaseId, shelfPosition, shelfLabel }: 
   const width = getSpineWidth(book.pageCount);
   const height = getSpineHeight(book.title);
 
-  // DnD: useDraggable регистрирует этот элемент как перетаскиваемый.
+  // useSortable: заменяет useDraggable и добавляет sortable-анимации.
+  // transform — смещение для анимации соседних элементов при перетаскивании.
   // data.current используется в onDragEnd BookcaseDndContext.
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging, transform, transition } = useSortable({
     id: `spine-${placement.id}`,
     data: {
       bookId: book.id,
       placementId: placement.id,
+      shelfId,
+      position: placement.position,
       title: book.title,
       spineColor: baseColor,
+      spineWidth: width,
     },
   });
 
@@ -76,22 +86,26 @@ export function BookSpine({ placement, bookcaseId, shelfPosition, shelfLabel }: 
 
   const spineColor = isHovered && !isDragging ? getLighterColor(baseColor) : baseColor;
 
+  // Комбинируем sortable-трансформ (анимация при сортировке) с hover-подъёмом.
+  const sortableTransform = CSS.Transform.toString(transform);
+  const hoverTranslate = isHovered && !isDragging ? 'translateY(-6px)' : '';
+  const combinedTransform = [sortableTransform, hoverTranslate].filter(Boolean).join(' ') || undefined;
+
   return (
     <>
-      {/* ref, listeners и attributes — на одном элементе, как требует dnd-kit.
-          Разделение ref и listeners на разные элементы ломает регистрацию:
-          работает только последний draggable в списке (крайний правый). */}
+      {/* ref, listeners и attributes — на одном элементе, как требует dnd-kit. */}
       <div
         ref={setNodeRef}
         {...listeners}
         {...attributes}
-        className="relative flex items-center justify-center rounded-t-[2px] cursor-grab active:cursor-grabbing select-none transition-transform duration-150 shrink-0"
+        className="relative flex items-center justify-center rounded-t-[2px] cursor-grab active:cursor-grabbing select-none shrink-0 overflow-hidden"
         style={{
           width: `${width}px`,
           height: `${height}px`,
           backgroundColor: spineColor,
           opacity: isDragging ? 0.35 : 1,
-          transform: isHovered && !isDragging ? 'translateY(-6px)' : 'translateY(0)',
+          transform: combinedTransform,
+          transition: isDragging ? undefined : (transition ?? 'transform 150ms ease'),
           boxShadow: isHovered && !isDragging
             ? 'inset -2px 0 4px rgba(0,0,0,0.15), 2px 2px 8px rgba(0,0,0,0.2)'
             : 'inset -1px 0 3px rgba(0,0,0,0.1)',
@@ -100,8 +114,18 @@ export function BookSpine({ placement, bookcaseId, shelfPosition, shelfLabel }: 
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleClick}
       >
-        {/* Название книги — вертикальный текст */}
-        {width >= 18 && (
+        {/* Обложка книги — если загружена */}
+        {book.coverUrl && (
+          <img
+            src={book.coverUrl}
+            alt={book.title}
+            draggable={false}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          />
+        )}
+
+        {/* Название книги — вертикальный текст (только без обложки) */}
+        {!book.coverUrl && width >= 18 && (
           <span
             className="absolute inset-x-0 overflow-hidden font-medium pointer-events-none"
             style={{
@@ -129,7 +153,6 @@ export function BookSpine({ placement, bookcaseId, shelfPosition, shelfLabel }: 
               textColor === '#ffffff' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
           }}
         />
-
       </div>
 
       {isDetailOpen && (

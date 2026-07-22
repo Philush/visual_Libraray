@@ -1,10 +1,16 @@
 version: '3.9'
 
 # Production-конфигурация: все сервисы в Docker.
-# Запуск: docker compose -f docker-compose.prod.yml up -d --build
 #
-# Перед первым запуском скопируй .env.prod.example в .env.prod
-# и заполни переменные.
+# Перед первым запуском:
+#   cp .env.prod.example .env.prod
+#   # заполнить .env.prod реальными значениями
+#
+# Запуск:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Обновление (без пересборки образов):
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 services:
 
@@ -56,6 +62,10 @@ services:
       PORT: 3001
       NODE_ENV: production
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+    volumes:
+      # Персистентное хранилище загруженных обложек.
+      # Без этого volume файлы теряются при пересборке образа.
+      - uploads_data:/app/apps/api/uploads
     expose:
       - '3001'
     depends_on:
@@ -104,4 +114,6 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  uploads_data:
     driver: local

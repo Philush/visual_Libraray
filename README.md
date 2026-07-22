@@ -60,9 +60,27 @@ API доступен на `http://localhost:3001/api/v1`
 
 ---
 
+---
+
+## Production Deploy
+
+```bash
+# 1. Скопировать и заполнить переменные окружения
+cp .env.prod.example .env.prod
+# отредактировать .env.prod: пароли, домен, NEXT_PUBLIC_API_URL
+
+# 2. Собрать и запустить все сервисы
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+Сервисы: PostgreSQL → миграции → API (3001) → Web (3000) → Nginx (80).
+Загруженные обложки хранятся в Docker volume `uploads_data` (персистентно).
+
+---
+
 ## Стек
 
-- **Frontend:** Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS
 - **Backend:** NestJS, TypeScript, Prisma
 - **Database:** PostgreSQL 17
 - **DnD:** @dnd-kit/core

@@ -5,36 +5,30 @@
  *
  * Рендерит шкаф как DOM-элементы (не Canvas/SVG):
  * - Деревянная рамка шкафа
- * - Набор полок с книгами в виде корешков
- * - Боковые стенки шкафа
+ * - Набор полок с книгами (ShelfRow)
+ * - Кнопка «+ Полка» под шкафом
  *
- * Подход CSS/DOM выбран потому что:
- * 1. Нативный DnD через @dnd-kit
- * 2. Accessibility (hover, focus)
- * 3. Простота анимаций через CSS
- * 4. Возможность показывать UI поверх книг
- *
- * DnD реализован в BookcaseDndContext (оборачивает эту компоненту).
- * ShelfRow регистрирует droppable-зоны, BookSpine — draggable-элементы.
+ * DnD реализован в BookcaseDndContext.
+ * ShelfRow — droppable-зона, BookSpine — sortable-элемент.
  *
  * Связанные фичи: F-04, F-05
  */
 
+import { Plus } from 'lucide-react';
 import { ShelfRow } from './ShelfRow';
+import { useCreateShelf } from '@/hooks/useBookcases';
 import type { BookcaseWithShelves } from '@visual-library/types';
 
 interface BookcaseCanvasProps {
   bookcase: BookcaseWithShelves;
 }
 
-/** Ширина боковых стенок шкафа в пикселях */
 const WALL_WIDTH = 16;
-
-/** Вертикальный отступ между полками */
 const SHELF_GAP = 4;
 
 export function BookcaseCanvas({ bookcase }: BookcaseCanvasProps) {
   const { shelves } = bookcase;
+  const { mutate: addShelf, isPending: isAdding } = useCreateShelf(bookcase.id);
 
   return (
     <div className="w-full overflow-x-auto pb-4">
@@ -42,12 +36,10 @@ export function BookcaseCanvas({ bookcase }: BookcaseCanvasProps) {
       <div
         className="inline-flex flex-col min-w-[400px] rounded-lg overflow-hidden shadow-2xl"
         style={{
-          // Тёмно-коричневый цвет дерева
           background: 'linear-gradient(135deg, #3d1a00 0%, #5c2a00 100%)',
           padding: `${WALL_WIDTH}px`,
           paddingBottom: `${WALL_WIDTH + 8}px`,
           gap: `${SHELF_GAP}px`,
-          // Имитация объёма рамки
           boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.4)',
         }}
       >
@@ -62,12 +54,16 @@ export function BookcaseCanvas({ bookcase }: BookcaseCanvasProps) {
         >
           {shelves.map((shelf) => (
             <div key={shelf.id} style={{ marginBottom: `${SHELF_GAP}px` }}>
-              <ShelfRow shelf={shelf} bookcaseId={bookcase.id} />
+              <ShelfRow
+                shelf={shelf}
+                bookcaseId={bookcase.id}
+                isLastShelf={shelves.length === 1}
+              />
             </div>
           ))}
         </div>
 
-        {/* Нижняя доска шкафа (основание) */}
+        {/* Нижняя доска шкафа */}
         <div
           className="rounded-sm"
           style={{
@@ -77,6 +73,18 @@ export function BookcaseCanvas({ bookcase }: BookcaseCanvasProps) {
             marginTop: '4px',
           }}
         />
+      </div>
+
+      {/* Кнопка добавления полки — под шкафом */}
+      <div className="mt-3 inline-flex min-w-[400px]">
+        <button
+          onClick={() => addShelf()}
+          disabled={isAdding}
+          className="flex items-center gap-1.5 text-xs text-amber-700/60 hover:text-amber-600 transition-colors disabled:opacity-40 px-1 py-0.5 rounded"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {isAdding ? 'Добавление…' : 'Добавить полку'}
+        </button>
       </div>
     </div>
   );

@@ -35,11 +35,12 @@ Book ─────────────────────────
 | author | VARCHAR(500) | NOT NULL | Автор |
 | isbn | VARCHAR(20) | NULL, UNIQUE | ISBN-10 или ISBN-13 |
 | pageCount | INTEGER | NULL, > 0 | Количество страниц |
-| coverUrl | TEXT | NULL | URL обложки |
+| coverUrl | TEXT | NULL | URL или путь обложки (из /uploads/covers/) |
 | spineColor | VARCHAR(7) | NULL | HEX-цвет корешка (#RRGGBB) |
 | genre | VARCHAR(100) | NULL | Жанр |
 | publishYear | SMALLINT | NULL | Год издания |
 | notes | TEXT | NULL, max 2000 | Заметки пользователя |
+| rating | INTEGER | NOT NULL, default 0 | Рейтинг пользователя (0–5 звёзд) |
 | metadata | JSONB | NULL | Сырые данные из внешних API |
 | createdAt | TIMESTAMPTZ | NOT NULL, default now() | Дата добавления |
 | updatedAt | TIMESTAMPTZ | NOT NULL, auto-update | Дата обновления |

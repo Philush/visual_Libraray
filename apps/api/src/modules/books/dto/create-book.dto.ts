@@ -6,7 +6,6 @@ import {
   Min,
   Max,
   MaxLength,
-  IsUrl,
   Matches,
 } from 'class-validator';
 
@@ -37,7 +36,8 @@ export class CreateBookDto {
   @Min(1, { message: 'Количество страниц должно быть больше 0' })
   pageCount?: number;
 
-  @IsUrl({}, { message: 'coverUrl должен быть валидным URL' })
+  // Принимает как внешние URL, так и внутренние пути (/uploads/covers/...)
+  @IsString()
   @IsOptional()
   coverUrl?: string;
 
@@ -65,4 +65,10 @@ export class CreateBookDto {
   @IsOptional()
   @MaxLength(2000, { message: 'Заметки не могут превышать 2000 символов' })
   notes?: string;
+
+  @IsInt()
+  @IsOptional()
+  @Min(0)
+  @Max(5)
+  rating?: number;
 }

@@ -31,6 +31,7 @@ model Book {
   genre       String?  @db.VarChar(100)
   publishYear Int?
   notes       String?
+  rating      Int      @default(0)
   // Метаданные из внешних API (Google Books, Open Library) — F-11.
   // JSONB позволяет хранить произвольную структуру без миграций.
   metadata    Json?

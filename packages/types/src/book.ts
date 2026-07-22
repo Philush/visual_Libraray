@@ -15,6 +15,7 @@ export interface Book {
   genre: string | null;
   publishYear: number | null;
   notes: string | null;
+  rating: number;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -69,4 +70,5 @@ export interface CreateBookPayload {
   genre?: string;
   publishYear?: number;
   notes?: string;
+  rating?: number;
 }

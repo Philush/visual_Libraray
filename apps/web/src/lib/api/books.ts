@@ -2,7 +2,7 @@
  * API-методы для работы с книгами.
  */
 
-import { get, post, patch, del } from './client';
+import { get, post, patch, del, API_BASE_URL } from './client';
 import type {
   Book,
   BookWithPlacement,
@@ -49,3 +49,26 @@ export const updateBook = (id: string, data: Partial<CreateBookPayload>) =>
 
 /** Удалить книгу */
 export const deleteBook = (id: string) => del(`/books/${id}`);
+
+/** Загрузить обложку книги, вернуть URL */
+export async function uploadBookCover(file: File): Promise<{ coverUrl: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/books/upload-cover`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Не удалось загрузить обложку');
+  }
+
+  return response.json() as Promise<{ coverUrl: string }>;
+}
+
+/** Уникальные авторы для автокомплита */
+export const getBookAuthors = () => get<string[]>('/books/authors');
+
+/** Уникальные жанры для автокомплита */
+export const getBookGenres = () => get<string[]>('/books/genres');

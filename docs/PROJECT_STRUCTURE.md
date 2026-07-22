@@ -9,7 +9,7 @@
 ```
 visual-library/
 ├── apps/
-│   ├── web/          # Next.js 15 frontend
+│   ├── web/          # Next.js 16 frontend
 │   └── api/          # NestJS backend
 ├── packages/
 │   └── types/        # Shared TypeScript типы (используются и на фронте, и на бэке)
@@ -56,13 +56,15 @@ apps/web/
 │   │   │   ├── Modal.tsx
 │   │   │   ├── Spinner.tsx
 │   │   │   ├── EmptyState.tsx      # Заглушка для пустых списков
+│   │   │   ├── StarRating.tsx      # 5 кликабельных звёзд (input + readOnly)
+│   │   │   ├── AutocompleteInput.tsx # Инпут с выпадающим списком подсказок
 │   │   │   └── index.ts            # Реэкспорт всех ui-компонентов
 │   │   │
 │   │   ├── bookcase/               # Компоненты визуализации шкафа
-│   │   │   ├── BookcaseCanvas.tsx  # Контейнер шкафа (список полок + панель unplaced)
+│   │   │   ├── BookcaseCanvas.tsx  # Контейнер шкафа + кнопка «+ Добавить полку»
 │   │   │   ├── BookcaseCard.tsx    # Карточка шкафа в списке (/library)
-│   │   │   ├── ShelfRow.tsx        # Одна полка — droppable-зона + книги
-│   │   │   ├── BookSpine.tsx       # Корешок книги (draggable, клик → детали)
+│   │   │   ├── ShelfRow.tsx        # Полка: droppable-зона, SortableContext, кнопка удаления
+│   │   │   ├── BookSpine.tsx       # Корешок: useSortable, обложка (object-cover) или цвет+текст
 │   │   │   └── UnplacedBooksPanel.tsx  # Панель книг без полки (draggable-источник)
 │   │   │
 │   │   ├── books/                  # Компоненты списка книг
@@ -78,17 +80,17 @@ apps/web/
 │   ├── features/                   # Feature-модули (бизнес-логика + компоненты фичи)
 │   │   ├── bookcase/               # F-01, F-04, F-05
 │   │   │   ├── BookcaseDndContext.tsx  # DndContext, sensors, onDragEnd, DragOverlay
-│   │   │   ├── BookDetailModal.tsx    # Детали книги при клике на корешок (UX-02)
+│   │   │   ├── BookDetailModal.tsx    # Детали книги: обложка, рейтинг, метаданные (UX-02)
 │   │   │   └── CreateBookcaseModal.tsx # Форма создания шкафа
 │   │   │
 │   │   └── books/                  # F-02, F-06, F-07
-│   │       ├── AddBookModal.tsx    # Форма добавления книги
-│   │       ├── EditBookModal.tsx   # Форма редактирования книги
+│   │       ├── AddBookModal.tsx    # Форма добавления: обложка, рейтинг, автокомплит
+│   │       ├── EditBookModal.tsx   # Форма редактирования: обложка, рейтинг, автокомплит
 │   │       └── ImportExportPanel.tsx  # Панель импорта/экспорта (CSV, XLSX, JSON)
 │   │
 │   ├── hooks/                      # TanStack Query хуки
-│   │   ├── useBookcases.ts         # CRUD шкафов + toast-уведомления
-│   │   ├── useBooks.ts             # CRUD книг + toast-уведомления
+│   │   ├── useBookcases.ts         # CRUD шкафов + useCreateShelf + useDeleteShelf
+│   │   ├── useBooks.ts             # CRUD книг + useBookAuthors + useBookGenres
 │   │   ├── usePlacements.ts        # Placement мутации + toast-уведомления
 │   │   └── useDebounce.ts          # Debounce для поискового инпута
 │   │
@@ -96,7 +98,7 @@ apps/web/
 │       ├── api/
 │       │   ├── client.ts           # Базовый fetch-клиент с единой обработкой ошибок
 │       │   ├── bookcases.ts        # API-методы для шкафов и полок
-│       │   ├── books.ts            # API-методы для книг
+│       │   ├── books.ts            # API-методы для книг + uploadBookCover + getBookAuthors/Genres
 │       │   ├── placements.ts       # API-методы для размещений
 │       │   └── importExport.ts     # exportLibrary() / importLibrary() — blob download + multipart
 │       ├── utils/

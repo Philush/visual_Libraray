@@ -19,6 +19,8 @@ import {
   createBookcase,
   updateBookcase,
   deleteBookcase,
+  createShelf,
+  deleteShelf,
 } from '@/lib/api/bookcases';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { CreateBookcasePayload, UpdateBookcasePayload } from '@visual-library/types';
@@ -70,6 +72,39 @@ export function useUpdateBookcase(id: string) {
     },
     onError: () => {
       toast.error('Не удалось обновить шкаф');
+    },
+  });
+}
+
+/** Мутация: добавить полку в шкаф */
+export function useCreateShelf(bookcaseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => createShelf(bookcaseId, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(bookcaseId) });
+      toast.success('Полка добавлена');
+    },
+    onError: () => {
+      toast.error('Не удалось добавить полку');
+    },
+  });
+}
+
+/** Мутация: удалить полку */
+export function useDeleteShelf(bookcaseId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (shelfId: string) => deleteShelf(bookcaseId, shelfId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.bookcase(bookcaseId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.books });
+      toast.success('Полка удалена');
+    },
+    onError: () => {
+      toast.error('Не удалось удалить полку');
     },
   });
 }

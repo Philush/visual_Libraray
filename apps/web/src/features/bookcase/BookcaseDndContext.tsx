@@ -6,20 +6,25 @@
  * Оборачивает BookcaseCanvas и UnplacedBooksPanel в DndContext.
  * Содержит всю логику перетаскивания:
  *
- * 1. Перетащить из UnplacedBooksPanel на полку → createPlacement
- * 2. Перетащить книгу с одной полки на другую  → updatePlacement
- * 3. Сброс вне полки                          → no-op (книга возвращается)
+ * 1. Из UnplacedBooksPanel на полку          → createPlacement (конец полки)
+ * 2. С полки на другую полку                 → updatePlacement (конец целевой)
+ * 3. На корешок другой книги (cross-shelf)   → updatePlacement / createPlacement с позицией
+ * 4. На корешок книги на той же полке        → updatePlacement (reorder, конкретная позиция)
+ * 5. Сброс вне полки                         → no-op
  *
- * DragOverlay — ghost-элемент, следующий за курсором.
- * Рендерится отдельно от DOM-дерева (через Portal) чтобы не вызывать
- * z-index проблем внутри шкафа.
+ * Различение случаев в onDragEnd:
+ * - over.id.startsWith('shelf-') → drop на пустую зону полки (к концу)
+ * - over.id.startsWith('spine-') → drop на конкретную книгу (позиция)
+ *
+ * DragOverlay — ghost-элемент с правильной шириной корешка.
  *
  * active.data.current структура:
- *   { bookId, title, spineColor }              — для unplaced книги
- *   { bookId, placementId, title, spineColor } — для книги на полке
+ *   { bookId, placementId?, shelfId?, position?, title, spineColor, spineWidth }
  *
- * over.data.current структура:
- *   { shelfId }                                — целевая полка
+ * over.data.current структура (shelf):
+ *   { shelfId }
+ * over.data.current структура (spine/sortable):
+ *   { bookId, placementId, shelfId, position, ... }
  *
  * Связанные фичи: F-05
  */
@@ -41,8 +46,11 @@ import { getContrastColor } from '@/lib/utils/contrastColor';
 interface ActiveDragData {
   bookId: string;
   placementId?: string;
+  shelfId?: string;
+  position?: number;
   title: string;
   spineColor: string;
+  spineWidth?: number;
 }
 
 interface BookcaseDndContextProps {
@@ -51,7 +59,6 @@ interface BookcaseDndContextProps {
 }
 
 export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextProps) {
-  // Данные активного перетаскивания — нужны для рендера DragOverlay
   const [activeDrag, setActiveDrag] = useState<ActiveDragData | null>(null);
 
   // activationConstraint: drag активируется только после 8px движения.
@@ -74,24 +81,43 @@ export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextP
       const { active, over } = event;
       setActiveDrag(null);
 
-      // Сброс вне зоны полки — ничего не делаем
       if (!over) return;
 
       const activeData = active.data.current as ActiveDragData | undefined;
-      const overData = over.data.current as { shelfId: string } | undefined;
-
-      if (!activeData?.bookId || !overData?.shelfId) return;
+      if (!activeData?.bookId) return;
 
       const { bookId, placementId } = activeData;
-      const { shelfId } = overData;
+      const overId = String(over.id);
 
-      if (placementId) {
-        // Книга уже на полке → перемещаем (updatePlacement).
-        // Позицию не передаём — ставится в конец (сервис определяет).
-        updatePlacement({ id: placementId, shelfId });
-      } else {
-        // Книга без полки → размещаем (createPlacement)
-        createPlacement({ bookId, shelfId });
+      if (overId.startsWith('shelf-')) {
+        // Drop на пустую зону полки — книга едет в конец
+        const overData = over.data.current as { shelfId: string } | undefined;
+        const shelfId = overData?.shelfId;
+        if (!shelfId) return;
+
+        if (placementId) {
+          updatePlacement({ id: placementId, shelfId });
+        } else {
+          createPlacement({ bookId, shelfId });
+        }
+      } else if (overId.startsWith('spine-')) {
+        // Drop на конкретный корешок — используем его shelfId и position
+        const overData = over.data.current as {
+          shelfId: string;
+          position: number;
+          placementId: string;
+        } | undefined;
+
+        if (!overData?.shelfId) return;
+
+        // Не перемещаем на себя же
+        if (placementId && placementId === overData.placementId) return;
+
+        if (placementId) {
+          updatePlacement({ id: placementId, shelfId: overData.shelfId, position: overData.position });
+        } else {
+          createPlacement({ bookId, shelfId: overData.shelfId, position: overData.position });
+        }
       }
     },
     [createPlacement, updatePlacement],
@@ -100,16 +126,12 @@ export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextP
   return (
     <DndContext
       sensors={sensors}
-      // pointerWithin: полка подсвечивается когда указатель внутри её области.
-      // Более интуитивно чем closestCenter для больших drop-зон.
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
       {children}
 
-      {/* DragOverlay — ghost-элемент, следует за курсором во время drag.
-          Рендерится через Portal, не влияет на layout. */}
       <DragOverlay>
         {activeDrag && <DragGhost data={activeDrag} />}
       </DragOverlay>
@@ -118,38 +140,40 @@ export function BookcaseDndContext({ bookcaseId, children }: BookcaseDndContextP
 }
 
 /**
- * Визуальный ghost-элемент при перетаскивании.
- * Имитирует корешок книги с тенью и вращением.
+ * Ghost-элемент при перетаскивании.
+ * Ширина соответствует реальному корешку книги (spineWidth из drag data).
  */
 function DragGhost({ data }: { data: ActiveDragData }) {
   const textColor = getContrastColor(data.spineColor);
+  const width = data.spineWidth ?? 36;
 
   return (
     <div
       className="flex items-center justify-center rounded-sm shadow-2xl"
       style={{
-        width: '36px',
+        width: `${width}px`,
         height: '110px',
         backgroundColor: data.spineColor,
-        // Лёгкий наклон создаёт эффект «захваченного» предмета
         transform: 'rotate(3deg) scale(1.05)',
         boxShadow: '4px 8px 20px rgba(0,0,0,0.45)',
         cursor: 'grabbing',
       }}
     >
-      <span
-        className="font-medium overflow-hidden text-ellipsis whitespace-nowrap"
-        style={{
-          fontSize: '9px',
-          color: textColor,
-          writingMode: 'vertical-rl',
-          transform: 'rotate(180deg)',
-          maxHeight: '100px',
-          padding: '4px 2px',
-        }}
-      >
-        {data.title}
-      </span>
+      {width >= 18 && (
+        <span
+          className="font-medium overflow-hidden text-ellipsis whitespace-nowrap"
+          style={{
+            fontSize: width < 24 ? '8px' : '9px',
+            color: textColor,
+            writingMode: 'vertical-rl',
+            transform: 'rotate(180deg)',
+            maxHeight: '100px',
+            padding: '4px 2px',
+          }}
+        >
+          {data.title}
+        </span>
+      )}
     </div>
   );
 }

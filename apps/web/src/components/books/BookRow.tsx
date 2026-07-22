@@ -3,8 +3,8 @@
 /**
  * Строка книги в табличном представлении.
  *
- * Отображает: обложку (цвет-заглушку), название, автора, жанр,
- * год, расположение на полке.
+ * Отображает: обложку (фото или цвет-заглушку), название, автора, жанр,
+ * год, рейтинг, расположение на полке.
  *
  * Связанные фичи: F-06
  */
@@ -12,15 +12,14 @@
 import { BookOpen } from 'lucide-react';
 import type { BookWithPlacement } from '@visual-library/types';
 import { generateSpineColor } from '@/lib/utils/spineColor';
+import { StarRating } from '@/components/ui';
 
 interface BookRowProps {
   book: BookWithPlacement;
-  /** Коллбэк клика по строке (открыть детали) */
   onClick?: (book: BookWithPlacement) => void;
 }
 
 export function BookRow({ book, onClick }: BookRowProps) {
-  // Цвет корешка: из данных книги или генерируем детерминированно
   const spineColor = book.spineColor ?? generateSpineColor(book.title, book.author);
 
   return (
@@ -28,13 +27,21 @@ export function BookRow({ book, onClick }: BookRowProps) {
       className="border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer"
       onClick={() => onClick?.(book)}
     >
-      {/* Цветной маркер (имитация корешка) */}
-      <td className="pl-4 py-3 w-10">
-        <div
-          className="w-3 h-10 rounded-sm"
-          style={{ backgroundColor: spineColor }}
-          title={`Корешок: ${book.title}`}
-        />
+      {/* Обложка или цветной маркер */}
+      <td className="pl-4 py-2 w-12">
+        {book.coverUrl ? (
+          <img
+            src={book.coverUrl}
+            alt={book.title}
+            className="w-8 h-12 object-cover rounded-sm shadow-sm"
+          />
+        ) : (
+          <div
+            className="w-3 h-10 rounded-sm"
+            style={{ backgroundColor: spineColor }}
+            title={`Корешок: ${book.title}`}
+          />
+        )}
       </td>
 
       {/* Название и автор */}
@@ -59,6 +66,15 @@ export function BookRow({ book, onClick }: BookRowProps) {
       {/* Год */}
       <td className="py-3 pr-4 text-xs text-gray-500 hidden sm:table-cell">
         {book.publishYear ?? '—'}
+      </td>
+
+      {/* Рейтинг */}
+      <td className="py-3 pr-4 hidden lg:table-cell">
+        {book.rating > 0 ? (
+          <StarRating value={book.rating} readOnly size="sm" />
+        ) : (
+          <span className="text-xs text-gray-300">—</span>
+        )}
       </td>
 
       {/* Расположение */}
