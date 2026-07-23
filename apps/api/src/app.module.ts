@@ -5,6 +5,8 @@ import { BookcasesModule } from './modules/bookcases/bookcases.module';
 import { BooksModule } from './modules/books/books.module';
 import { PlacementsModule } from './modules/placements/placements.module';
 import { ImportExportModule } from './modules/import-export/import-export.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 
 /**
  * Корневой модуль приложения.
@@ -28,6 +30,10 @@ import { ImportExportModule } from './modules/import-export/import-export.module
     BooksModule,
     PlacementsModule,
     ImportExportModule,
+
+    // Phase 2 — авторизация
+    UsersModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

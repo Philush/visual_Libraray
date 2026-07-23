@@ -50,6 +50,85 @@
 
 ---
 
+## Auth — Авторизация
+
+Все эндпоинты в `/auth` не требуют токена, кроме `GET /auth/me`.
+Защищённые эндпоинты принимают токен в заголовке: `Authorization: Bearer <token>`.
+
+---
+
+### POST /auth/register
+
+Создать аккаунт.
+
+**Request body:**
+```json
+{
+  "email": "user@example.com",   // required
+  "password": "минимум6символов", // required, min 6, max 72
+  "name": "Дмитрий"              // optional, max 100
+}
+```
+
+**Response 200:**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "name": "Дмитрий",
+    "createdAt": "2026-07-23T10:00:00Z",
+    "updatedAt": "2026-07-23T10:00:00Z"
+  },
+  "accessToken": "eyJhbGci..."
+}
+```
+
+**Ошибки:**
+- 409 Conflict — email уже занят
+- 422 Unprocessable Entity — невалидный email или короткий пароль
+
+---
+
+### POST /auth/login
+
+Войти в аккаунт.
+
+**Request body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "пароль"
+}
+```
+
+**Response 200:** аналогично `/auth/register`
+
+**Ошибки:**
+- 401 Unauthorized — неверный email или пароль
+
+---
+
+### GET /auth/me
+
+Получить данные текущего пользователя. Требует `Authorization: Bearer <token>`.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "email": "user@example.com",
+  "name": "Дмитрий",
+  "createdAt": "2026-07-23T10:00:00Z",
+  "updatedAt": "2026-07-23T10:00:00Z"
+}
+```
+
+**Ошибки:**
+- 401 Unauthorized — токен отсутствует, истёк или недействителен
+
+---
+
 ## Bookcases — Шкафы
 
 ### GET /bookcases

@@ -119,16 +119,21 @@ Book ─────────────────────────
 
 ---
 
-### `users` (Phase 2)
+### `users`
+
+Аккаунты пользователей. Создаётся при регистрации; в Phase 2 связывается с books и bookcases через userId.
 
 | Поле | Тип | Ограничения | Описание |
 |---|---|---|---|
-| id | UUID | PK | Идентификатор |
-| email | VARCHAR(255) | NOT NULL, UNIQUE | Email |
-| passwordHash | VARCHAR(255) | NOT NULL | Bcrypt hash пароля |
-| name | VARCHAR(100) | NULL | Отображаемое имя |
+| id | UUID | PK, default gen_random_uuid() | Идентификатор |
+| email | VARCHAR(255) | NOT NULL, UNIQUE | Email (логин) |
+| passwordHash | VARCHAR(255) | NOT NULL | bcrypt hash пароля (10 rounds) |
+| name | VARCHAR(100) | NULL | Отображаемое имя (необязательно) |
 | createdAt | TIMESTAMPTZ | NOT NULL, default now() | Дата регистрации |
 | updatedAt | TIMESTAMPTZ | NOT NULL, auto-update | Дата обновления |
+
+**Индексы:**
+- UNIQUE по `email` — обеспечивает уникальность аккаунтов
 
 ---
 

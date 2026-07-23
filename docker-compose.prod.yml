@@ -62,6 +62,7 @@ services:
       PORT: 3001
       NODE_ENV: production
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
       # Персистентное хранилище загруженных обложек.
       # Без этого volume файлы теряются при пересборке образа.

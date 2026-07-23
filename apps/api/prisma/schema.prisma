@@ -117,19 +117,16 @@ model BookPlacement {
 
 // ─────────────────────────────────────────────
 // User (Phase 2)
-// Закомментировано — раскомментировать при добавлении авторизации.
-//
-// model User {
-//   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-//   email        String   @unique @db.VarChar(255)
-//   passwordHash String   @db.VarChar(255)
-//   name         String?  @db.VarChar(100)
-//   createdAt    DateTime @default(now()) @db.Timestamptz()
-//   updatedAt    DateTime @updatedAt @db.Timestamptz()
-//
-//   books     Book[]
-//   bookcases Bookcase[]
-//
-//   @@map("users")
-// }
+// Авторизация через email + password (JWT).
+// Связи с Book/Bookcase добавляются в F-09 (изоляция данных).
 // ─────────────────────────────────────────────
+model User {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @db.VarChar(255)
+  name         String?  @db.VarChar(100)
+  createdAt    DateTime @default(now()) @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @db.Timestamptz()
+
+  @@map("users")
+}

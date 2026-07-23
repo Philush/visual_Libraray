@@ -16,16 +16,28 @@
  * мог открывать его через onCreateBookcase prop.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { CreateBookcaseModal } from '@/features/bookcase/CreateBookcaseModal';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  // Управление видимостью модала создания шкафа.
-  // Состояние в layout — т.к. его открывает и Sidebar (кнопка "+"),
-  // и страница библиотеки (кнопка "Создать шкаф").
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  // Редирект на /login если пользователь не авторизован
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Пока проверяем авторизацию — ничего не рендерим (избегаем flash контента)
+  if (isLoading || !isAuthenticated) return null;
 
   return (
     <div className="h-full flex flex-col">

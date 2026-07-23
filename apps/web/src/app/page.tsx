@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
 
 /**
- * Корневая страница — редиректит на /library.
- * /library — главная точка входа в приложение (список шкафов + книги без полки).
+ * Корневая страница — редиректит на /login.
+ * После успешной авторизации /login перенаправляет на /library.
  */
 export default function RootPage() {
-  redirect('/library');
+  redirect('/login');
 }

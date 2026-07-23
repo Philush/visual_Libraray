@@ -37,9 +37,15 @@ apps/web/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── layout.tsx              # Root layout (шрифты, провайдеры)
-│   │   ├── page.tsx                # / → редирект на /library
-│   │   └── (main)/                 # Route group — общий layout с навигацией
-│   │       ├── layout.tsx          # Sidebar + Header
+│   │   ├── page.tsx                # / → редирект на /login
+│   │   ├── (auth)/                 # Route group — страницы авторизации (без сайдбара)
+│   │   │   ├── layout.tsx          # Центрированный layout: логотип + форма
+│   │   │   ├── login/
+│   │   │   │   └── page.tsx        # /login → форма входа
+│   │   │   └── register/
+│   │   │       └── page.tsx        # /register → форма регистрации
+│   │   └── (main)/                 # Route group — основные страницы (требует авторизации)
+│   │       ├── layout.tsx          # Sidebar + Header; редирект на /login если не авторизован
 │   │       ├── library/
 │   │       │   └── page.tsx        # /library → список шкафов + книги без полки
 │   │       ├── bookcases/
@@ -72,10 +78,10 @@ apps/web/
 │   │   │   └── BookFilters.tsx     # Панель поиска и фильтрации
 │   │   │
 │   │   ├── layout/                 # Компоненты лейаута
-│   │   │   ├── Header.tsx
+│   │   │   ├── Header.tsx          # Логотип + имя пользователя + кнопка «Выйти»
 │   │   │   └── Sidebar.tsx
 │   │   │
-│   │   └── providers.tsx           # QueryClient + Toaster (sonner)
+│   │   └── providers.tsx           # QueryClient + AuthProvider + Toaster (sonner)
 │   │
 │   ├── features/                   # Feature-модули (бизнес-логика + компоненты фичи)
 │   │   ├── bookcase/               # F-01, F-04, F-05
@@ -88,6 +94,9 @@ apps/web/
 │   │       ├── EditBookModal.tsx   # Форма редактирования: обложка, рейтинг, автокомплит
 │   │       └── ImportExportPanel.tsx  # Панель импорта/экспорта (CSV, XLSX, JSON)
 │   │
+│   ├── contexts/
+│   │   └── AuthContext.tsx          # Глобальное состояние авторизации (user, token, login/logout)
+│   │
 │   ├── hooks/                      # TanStack Query хуки
 │   │   ├── useBookcases.ts         # CRUD шкафов + useCreateShelf + useDeleteShelf
 │   │   ├── useBooks.ts             # CRUD книг + useBookAuthors + useBookGenres
@@ -96,7 +105,8 @@ apps/web/
 │   │
 │   └── lib/                        # Утилиты и инфраструктура
 │       ├── api/
-│       │   ├── client.ts           # Базовый fetch-клиент с единой обработкой ошибок
+│       │   ├── client.ts           # fetch-клиент: Bearer-токен, обработка ошибок, getStoredToken
+│       │   ├── auth.ts             # login(), register(), getMe() — без JSON-клиента (multipart free)
 │       │   ├── bookcases.ts        # API-методы для шкафов и полок
 │       │   ├── books.ts            # API-методы для книг + uploadBookCover + getBookAuthors/Genres
 │       │   ├── placements.ts       # API-методы для размещений
@@ -157,11 +167,27 @@ apps/api/
 │   │   │       ├── create-placement.dto.ts
 │   │   │       └── update-placement.dto.ts
 │   │   │
-│   │   └── import-export/          # Импорт/экспорт (F-07)
-│   │       ├── import-export.module.ts
-│   │       ├── import-export.controller.ts
-│   │       ├── import.service.ts         # Логика импорта CSV/XLSX/JSON
-│   │       └── export.service.ts         # Логика экспорта CSV/XLSX/JSON
+│   │   ├── import-export/          # Импорт/экспорт (F-07)
+│   │   │   ├── import-export.module.ts
+│   │   │   ├── import-export.controller.ts
+│   │   │   ├── import.service.ts         # Логика импорта CSV/XLSX/JSON
+│   │   │   └── export.service.ts         # Логика экспорта CSV/XLSX/JSON
+│   │   │
+│   │   ├── auth/                   # Авторизация (F-08)
+│   │   │   ├── auth.module.ts
+│   │   │   ├── auth.controller.ts        # POST /auth/register|login, GET /auth/me
+│   │   │   ├── auth.service.ts           # register, login, getMe, bcrypt, JWT sign
+│   │   │   ├── strategies/
+│   │   │   │   └── jwt.strategy.ts       # PassportStrategy: валидация Bearer-токена
+│   │   │   ├── guards/
+│   │   │   │   └── jwt-auth.guard.ts     # @UseGuards(JwtAuthGuard) для защиты эндпоинтов
+│   │   │   └── dto/
+│   │   │       ├── register.dto.ts
+│   │   │       └── login.dto.ts
+│   │   │
+│   │   └── users/                  # Пользователи (F-08, F-10)
+│   │       ├── users.module.ts
+│   │       └── users.service.ts          # findById, findByEmail, create
 │   │
 │   ├── shared/                     # Общий код для всех модулей
 │   │   ├── filters/
@@ -240,6 +266,9 @@ NODE_ENV=development
 
 # CORS (разрешённые origins)
 ALLOWED_ORIGINS="http://localhost:3000"
+
+# JWT секрет для подписи токенов (в prod — случайная строка 32+ символа)
+JWT_SECRET="dev-secret-change-in-production"
 ```
 
 ### apps/web/.env.local

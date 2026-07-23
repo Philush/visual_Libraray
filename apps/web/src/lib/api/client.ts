@@ -28,12 +28,25 @@ export class ApiError extends Error {
  * Выполняет HTTP-запрос к API.
  * Бросает ApiError при статусах >= 400.
  */
+const TOKEN_KEY = 'vl_token';
+
+export const getStoredToken = (): string | null =>
+  typeof window !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null;
+
+export const setStoredToken = (token: string): void =>
+  localStorage.setItem(TOKEN_KEY, token);
+
+export const removeStoredToken = (): void =>
+  localStorage.removeItem(TOKEN_KEY);
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
+  const token = getStoredToken();
 
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options?.headers,
     },
     ...options,

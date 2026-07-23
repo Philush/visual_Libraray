@@ -48,8 +48,8 @@ cp apps/web/.env.example apps/web/.env.local
 # 1. Запустить PostgreSQL
 docker compose up -d
 
-# 2. Применить миграции БД
-pnpm --filter api prisma migrate dev
+# 2. Применить схему БД
+pnpm --filter @visual-library/api exec prisma db push
 
 # 3. Запустить backend и frontend
 pnpm dev
@@ -58,7 +58,21 @@ pnpm dev
 Приложение доступно на `http://localhost:3000`
 API доступен на `http://localhost:3001/api/v1`
 
----
+### Запуск standalone-сборки (локально)
+
+```bash
+# 1. Собрать
+pnpm --filter @visual-library/api run build
+pnpm --filter @visual-library/web run build
+
+# 2. Скопировать статику в standalone-директорию (обязательно!)
+cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static
+cp -r apps/web/public apps/web/.next/standalone/apps/web/public
+
+# 3. Запустить
+node apps/api/dist/main.js &
+node apps/web/.next/standalone/apps/web/server.js &
+```
 
 ---
 

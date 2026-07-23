@@ -6,3 +6,4 @@
 export * from './book';
 export * from './bookcase';
 export * from './api';
+export * from './user';
