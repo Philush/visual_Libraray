@@ -6,25 +6,19 @@ import { UpdateBookcaseDto } from './dto/update-bookcase.dto';
 /**
  * Сервис управления книжными шкафами.
  *
- * Содержит всю бизнес-логику работы со шкафами.
- * Контроллер только маршрутизирует запросы, логика — здесь.
- *
- * Связанные фичи: F-01
+ * Все методы принимают userId — данные фильтруются по владельцу.
+ * Связанные фичи: F-01, F-09
  */
 @Injectable()
 export class BookcasesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Возвращает все шкафы с количеством полок и книг.
-   * Используется для списка шкафов на главной странице.
-   */
-  async findAll() {
+  async findAll(userId: string) {
     const bookcases = await this.prisma.bookcase.findMany({
+      where: { userId },
       include: {
         shelves: {
           include: {
-            // Считаем книги на каждой полке
             books: { select: { id: true } },
           },
         },
@@ -32,7 +26,6 @@ export class BookcasesService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // Агрегируем счётчики на уровне приложения (не SQL) для простоты
     return bookcases.map((bc) => ({
       id: bc.id,
       name: bc.name,
@@ -44,17 +37,13 @@ export class BookcasesService {
     }));
   }
 
-  /**
-   * Создаёт шкаф с указанным количеством полок.
-   * Полки нумеруются сверху вниз: position 1 = верхняя.
-   */
-  async create(dto: CreateBookcaseDto) {
+  async create(dto: CreateBookcaseDto, userId: string) {
     return this.prisma.bookcase.create({
       data: {
         name: dto.name,
         description: dto.description,
+        userId,
         shelves: {
-          // Создаём все полки одной транзакцией через вложенный create
           create: Array.from({ length: dto.shelvesCount }, (_, i) => ({
             position: i + 1,
           })),
@@ -64,13 +53,9 @@ export class BookcasesService {
     });
   }
 
-  /**
-   * Возвращает шкаф с полками и книгами на них.
-   * Используется для страницы визуализации шкафа (F-04).
-   */
-  async findOne(id: string) {
-    const bookcase = await this.prisma.bookcase.findUnique({
-      where: { id },
+  async findOne(id: string, userId: string) {
+    const bookcase = await this.prisma.bookcase.findFirst({
+      where: { id, userId },
       include: {
         shelves: {
           orderBy: { position: 'asc' },
@@ -78,7 +63,6 @@ export class BookcasesService {
             books: {
               orderBy: { position: 'asc' },
               include: {
-                // Включаем данные книги для рендера корешка
                 book: {
                   select: {
                     id: true,
@@ -104,8 +88,8 @@ export class BookcasesService {
     return bookcase;
   }
 
-  async update(id: string, dto: UpdateBookcaseDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateBookcaseDto, userId: string) {
+    await this.ensureExists(id, userId);
 
     return this.prisma.bookcase.update({
       where: { id },
@@ -113,25 +97,17 @@ export class BookcasesService {
     });
   }
 
-  /**
-   * Удаляет шкаф.
-   *
-   * Все book_placements, привязанные к полкам этого шкафа, удаляются каскадно
-   * (настроено в Prisma schema через onDelete: Cascade на Shelf → BookPlacement).
-   * Сами книги (таблица books) НЕ удаляются — только их расположение.
-   */
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, userId: string) {
+    await this.ensureExists(id, userId);
 
     return this.prisma.bookcase.delete({ where: { id } });
   }
 
-  /**
-   * Проверяет существование шкафа. Бросает 404 если не найден.
-   * Используется перед update/delete для явного сообщения об ошибке.
-   */
-  private async ensureExists(id: string) {
-    const exists = await this.prisma.bookcase.findUnique({ where: { id }, select: { id: true } });
+  private async ensureExists(id: string, userId: string) {
+    const exists = await this.prisma.bookcase.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
     if (!exists) {
       throw new NotFoundException(`Шкаф с ID ${id} не найден`);
     }

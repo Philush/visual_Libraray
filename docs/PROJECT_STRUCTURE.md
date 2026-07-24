@@ -190,6 +190,8 @@ apps/api/
 │   │       └── users.service.ts          # findById, findByEmail, create
 │   │
 │   ├── shared/                     # Общий код для всех модулей
+│   │   ├── decorators/
+│   │   │   └── current-user.decorator.ts # @CurrentUser() — извлекает userId из JWT req.user
 │   │   ├── filters/
 │   │   │   └── http-exception.filter.ts  # Глобальный обработчик ошибок
 │   │   ├── pipes/

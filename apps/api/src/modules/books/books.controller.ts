@@ -14,11 +14,14 @@ import {
   UploadedFile,
   Req,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Request } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -27,10 +30,12 @@ import { QueryBooksDto } from './dto/query-books.dto';
 /**
  * Контроллер книг.
  *
+ * Все маршруты защищены JWT. Данные фильтруются по владельцу (F-09).
+ *
  * Маршруты (все с префиксом /api/v1/):
- * GET    /books              — список книг (с поиском, фильтрацией, пагинацией)
- * GET    /books/authors      — уникальные авторы (для автокомплита)
- * GET    /books/genres       — уникальные жанры (для автокомплита)
+ * GET    /books              — список книг пользователя (с поиском, фильтрацией, пагинацией)
+ * GET    /books/authors      — авторы книг пользователя (для автокомплита)
+ * GET    /books/genres       — жанры книг пользователя (для автокомплита)
  * POST   /books/upload-cover — загрузка обложки (multipart/form-data)
  * POST   /books              — создать книгу
  * GET    /books/:id          — получить книгу
@@ -40,25 +45,26 @@ import { QueryBooksDto } from './dto/query-books.dto';
  * ВАЖНО: статические маршруты (/authors, /genres, /upload-cover) должны
  * быть объявлены ДО параметрического /:id, иначе NestJS их не найдёт.
  *
- * Связанные фичи: F-02, F-06, F-07
+ * Связанные фичи: F-02, F-06, F-07, F-09
  */
+@UseGuards(JwtAuthGuard)
 @Controller('books')
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
   @Get()
-  findAll(@Query() query: QueryBooksDto) {
-    return this.booksService.findAll(query);
+  findAll(@Query() query: QueryBooksDto, @CurrentUser() userId: string) {
+    return this.booksService.findAll(query, userId);
   }
 
   @Get('authors')
-  getAuthors() {
-    return this.booksService.getAuthors();
+  getAuthors(@CurrentUser() userId: string) {
+    return this.booksService.getAuthors(userId);
   }
 
   @Get('genres')
-  getGenres() {
-    return this.booksService.getGenres();
+  getGenres(@CurrentUser() userId: string) {
+    return this.booksService.getGenres(userId);
   }
 
   @Post('upload-cover')
@@ -77,7 +83,7 @@ export class BooksController {
         }
         cb(null, true);
       },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   uploadCover(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
@@ -88,23 +94,27 @@ export class BooksController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() dto: CreateBookDto) {
-    return this.booksService.create(dto);
+  create(@Body() dto: CreateBookDto, @CurrentUser() userId: string) {
+    return this.booksService.create(dto, userId);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.booksService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() userId: string) {
+    return this.booksService.findOne(id, userId);
   }
 
   @Patch(':id')
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateBookDto) {
-    return this.booksService.update(id, dto);
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateBookDto,
+    @CurrentUser() userId: string,
+  ) {
+    return this.booksService.update(id, dto, userId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.booksService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() userId: string) {
+    return this.booksService.remove(id, userId);
   }
 }

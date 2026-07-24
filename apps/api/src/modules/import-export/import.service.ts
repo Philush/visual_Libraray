@@ -13,7 +13,9 @@ import * as ExcelJS from 'exceljs';
  * - 'skip'   — если книга с таким title+author уже есть, пропустить
  * - 'update' — обновить существующую книгу новыми полями (кроме title/author)
  *
- * Связанные фичи: F-07
+ * Все данные привязываются к userId (F-09).
+ *
+ * Связанные фичи: F-07, F-09
  */
 
 export type OnDuplicate = 'skip' | 'update';
@@ -43,9 +45,6 @@ export class ImportService {
 
   // ─── CSV ──────────────────────────────────────────────
 
-  /**
-   * Парсит одну строку CSV с корректной обработкой кавычек и запятых внутри полей.
-   */
   private parseCsvRow(line: string): string[] {
     const result: string[] = [];
     let current = '';
@@ -71,9 +70,8 @@ export class ImportService {
     return result;
   }
 
-  async importFromCsv(buffer: Buffer, onDuplicate: OnDuplicate = 'skip'): Promise<ImportResult> {
+  async importFromCsv(buffer: Buffer, onDuplicate: OnDuplicate = 'skip', userId: string): Promise<ImportResult> {
     let text = buffer.toString('utf-8');
-    // Убираем BOM если есть
     if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
 
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
@@ -86,12 +84,12 @@ export class ImportService {
     });
 
     const { books, errors } = this.normalizeRows(dataRows);
-    return this.upsertBooks(books, onDuplicate, errors);
+    return this.upsertBooks(books, onDuplicate, errors, userId);
   }
 
   // ─── XLSX ─────────────────────────────────────────────
 
-  async importFromXlsx(buffer: Buffer, onDuplicate: OnDuplicate = 'skip'): Promise<ImportResult> {
+  async importFromXlsx(buffer: Buffer, onDuplicate: OnDuplicate = 'skip', userId: string): Promise<ImportResult> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer);
 
@@ -102,7 +100,6 @@ export class ImportService {
     let headers: string[] = [];
 
     sheet.eachRow((row, rowNumber) => {
-      // row.values[0] — undefined (exceljs индексирует с 1), убираем
       const values = (row.values as (ExcelJS.CellValue | undefined)[]).slice(1);
 
       if (rowNumber === 1) {
@@ -112,13 +109,12 @@ export class ImportService {
         headers.forEach((h, i) => {
           rowObj[h] = String(values[i] ?? '').trim();
         });
-        // Пропускаем полностью пустые строки
         if (Object.values(rowObj).some((v) => v)) rows.push(rowObj);
       }
     });
 
     const { books, errors } = this.normalizeRows(rows);
-    return this.upsertBooks(books, onDuplicate, errors);
+    return this.upsertBooks(books, onDuplicate, errors, userId);
   }
 
   // ─── JSON ─────────────────────────────────────────────
@@ -126,6 +122,7 @@ export class ImportService {
   async importFromJson(
     data: unknown,
     onDuplicate: OnDuplicate = 'skip',
+    userId: string,
   ): Promise<{ books: ImportResult; placements: { created: number; skipped: number; errors: string[] } }> {
     if (
       typeof data !== 'object' ||
@@ -142,9 +139,8 @@ export class ImportService {
     };
 
     const { books, errors: bookErrors } = this.normalizeRows(payload.books as Record<string, string>[]);
-    const booksResult = await this.upsertBooks(books, onDuplicate, bookErrors);
+    const booksResult = await this.upsertBooks(books, onDuplicate, bookErrors, userId);
 
-    // Размещаем книги на полках если placements присутствуют
     const placements = Array.isArray(payload.placements) ? payload.placements : [];
     let placementsCreated = 0;
     let placementsSkipped = 0;
@@ -157,6 +153,7 @@ export class ImportService {
       try {
         const book = await this.prisma.book.findFirst({
           where: {
+            userId,
             title:  { equals: String(placement.bookTitle ?? ''),  mode: 'insensitive' },
             author: { equals: String(placement.bookAuthor ?? ''), mode: 'insensitive' },
           },
@@ -165,7 +162,10 @@ export class ImportService {
         if (!book) { placementsSkipped++; continue; }
 
         const bookcase = await this.prisma.bookcase.findFirst({
-          where: { name: { equals: String(placement.bookcaseName ?? ''), mode: 'insensitive' } },
+          where: {
+            userId,
+            name: { equals: String(placement.bookcaseName ?? ''), mode: 'insensitive' },
+          },
           select: { id: true },
         });
         if (!bookcase) { placementsSkipped++; continue; }
@@ -176,7 +176,6 @@ export class ImportService {
         });
         if (!shelf) { placementsSkipped++; continue; }
 
-        // Книга уже размещена — пропускаем
         const existing = await this.prisma.bookPlacement.findUnique({
           where: { bookId: book.id },
         });
@@ -208,15 +207,10 @@ export class ImportService {
 
   // ─── Вспомогательные ──────────────────────────────────
 
-  /**
-   * Нормализует массив строк из CSV/XLSX/JSON в типизированные BookRow объекты.
-   * Поддерживает как русские заголовки (из шаблона), так и английские ключи (JSON).
-   */
   private normalizeRows(rows: Record<string, string>[]): { books: BookRow[]; errors: string[] } {
     const books: BookRow[] = [];
     const errors: string[] = [];
 
-    // Вспомогательная — берёт первое непустое значение из нескольких вариантов ключа
     const pick = (row: Record<string, string>, ...keys: string[]): string | undefined => {
       for (const key of keys) {
         const val = row[key]?.trim();
@@ -234,7 +228,7 @@ export class ImportService {
         return;
       }
 
-      const pageCountRaw  = pick(row, 'pageCount',   'Страниц');
+      const pageCountRaw   = pick(row, 'pageCount',   'Страниц');
       const publishYearRaw = pick(row, 'publishYear', 'Год издания');
       const spineColorRaw  = pick(row, 'spineColor',  'Цвет корешка');
 
@@ -245,7 +239,7 @@ export class ImportService {
         title,
         author,
         isbn:        pick(row, 'isbn',     'ISBN'),
-        pageCount:   pageCount && !isNaN(pageCount)   ? pageCount   : undefined,
+        pageCount:   pageCount   && !isNaN(pageCount)   ? pageCount   : undefined,
         genre:       pick(row, 'genre',    'Жанр'),
         publishYear: publishYear && !isNaN(publishYear) ? publishYear : undefined,
         notes:       pick(row, 'notes',    'Заметки'),
@@ -257,14 +251,11 @@ export class ImportService {
     return { books, errors };
   }
 
-  /**
-   * Создаёт или обновляет книги в БД согласно стратегии onDuplicate.
-   * Обработка идёт последовательно, чтобы корректно считать статистику.
-   */
   private async upsertBooks(
     books: BookRow[],
     onDuplicate: OnDuplicate,
     existingErrors: string[],
+    userId: string,
   ): Promise<ImportResult> {
     let created = 0;
     let updated = 0;
@@ -275,6 +266,7 @@ export class ImportService {
       try {
         const existing = await this.prisma.book.findFirst({
           where: {
+            userId,
             title:  { equals: book.title,  mode: 'insensitive' },
             author: { equals: book.author, mode: 'insensitive' },
           },
@@ -300,7 +292,7 @@ export class ImportService {
             skipped++;
           }
         } else {
-          await this.prisma.book.create({ data: book });
+          await this.prisma.book.create({ data: { ...book, userId } });
           created++;
         }
       } catch (err) {

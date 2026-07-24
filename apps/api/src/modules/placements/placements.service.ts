@@ -6,13 +6,12 @@ import { UpdatePlacementDto } from './dto/update-placement.dto';
 /**
  * Сервис размещения книг на полках.
  *
- * Ключевые инварианты (enforcement на уровне БД + логики):
+ * Ключевые инварианты:
  * 1. Книга может стоять только на одной полке (UNIQUE bookId в book_placements)
  * 2. На одной позиции полки не может быть двух книг (UNIQUE shelfId+position)
+ * 3. Пользователь может размещать только свои книги на своих полках (F-09)
  *
- * При перемещении позиции других книг пересчитываются транзакционно.
- *
- * Связанные фичи: F-03, F-05
+ * Связанные фичи: F-03, F-05, F-09
  */
 @Injectable()
 export class PlacementsService {
@@ -20,27 +19,17 @@ export class PlacementsService {
 
   /**
    * Размещает книгу на полке.
-   *
-   * Алгоритм:
-   * 1. Если книга уже стоит где-то — старый placement удаляется
-   * 2. Если position не указана — ставим в конец полки
-   * 3. Сдвигаем существующие книги для освобождения позиции
-   * 4. Создаём новый placement
-   *
-   * Всё выполняется в одной транзакции.
+   * Проверяет, что и книга, и шкаф принадлежат текущему пользователю.
    */
-  async create(dto: CreatePlacementDto) {
+  async create(dto: CreatePlacementDto, userId: string) {
     const { bookId, shelfId, position } = dto;
 
-    // Проверяем существование книги и полки
-    await this.ensureBookExists(bookId);
-    await this.ensureShelfExists(shelfId);
+    await this.ensureBookOwned(bookId, userId);
+    await this.ensureShelfOwned(shelfId, userId);
 
     return this.prisma.$transaction(async (tx) => {
-      // Удаляем старое расположение книги (если есть)
       await tx.bookPlacement.deleteMany({ where: { bookId } });
 
-      // Определяем позицию: в конец если не указана
       let targetPosition = position;
       if (!targetPosition) {
         const lastBook = await tx.bookPlacement.findFirst({
@@ -51,7 +40,6 @@ export class PlacementsService {
         targetPosition = (lastBook?.position ?? 0) + 1;
       }
 
-      // Сдвигаем книги на целевой позиции и правее вправо (+1)
       await tx.bookPlacement.updateMany({
         where: { shelfId, position: { gte: targetPosition } },
         data: { position: { increment: 1 } },
@@ -66,20 +54,15 @@ export class PlacementsService {
 
   /**
    * Перемещает книгу: другая полка или другая позиция на той же полке.
-   *
-   * Алгоритм (транзакционный):
-   * 1. Удаляем текущий placement (книга временно "без полки")
-   * 2. Нормализуем позиции на старой полке (соседи сдвигаются влево)
-   * 3. Определяем целевую позицию (конец полки если не указана)
-   * 4. Сдвигаем книги на целевой полке вправо
-   * 5. Создаём новый placement
-   *
-   * Порядок важен: нельзя сдвигать соседей пока книга ещё на старой позиции —
-   * это нарушало бы UNIQUE(shelfId, position).
+   * Проверяет, что placement принадлежит пользователю (через книгу).
    */
-  async update(id: string, dto: UpdatePlacementDto) {
-    const placement = await this.prisma.bookPlacement.findUnique({ where: { id } });
-    if (!placement) {
+  async update(id: string, dto: UpdatePlacementDto, userId: string) {
+    const placement = await this.prisma.bookPlacement.findUnique({
+      where: { id },
+      include: { book: { select: { userId: true } } },
+    });
+
+    if (!placement || placement.book.userId !== userId) {
       throw new NotFoundException(`Placement с ID ${id} не найден`);
     }
 
@@ -87,22 +70,19 @@ export class PlacementsService {
     const targetPosition = dto.position;
 
     if (dto.shelfId && dto.shelfId !== placement.shelfId) {
-      await this.ensureShelfExists(dto.shelfId);
+      await this.ensureShelfOwned(dto.shelfId, userId);
     }
 
     const { bookId } = placement;
 
     return this.prisma.$transaction(async (tx) => {
-      // Шаг 1: удаляем текущий placement — книга временно «без полки»
       await tx.bookPlacement.delete({ where: { id } });
 
-      // Шаг 2: нормализуем позиции на старой полке (сдвигаем соседей влево)
       await tx.bookPlacement.updateMany({
         where: { shelfId: placement.shelfId, position: { gt: placement.position } },
         data: { position: { decrement: 1 } },
       });
 
-      // Шаг 3: определяем новую позицию
       let newPosition = targetPosition;
       if (!newPosition) {
         const lastBook = await tx.bookPlacement.findFirst({
@@ -113,13 +93,11 @@ export class PlacementsService {
         newPosition = (lastBook?.position ?? 0) + 1;
       }
 
-      // Шаг 4: освобождаем целевую позицию (сдвигаем соседей вправо)
       await tx.bookPlacement.updateMany({
         where: { shelfId: targetShelfId, position: { gte: newPosition } },
         data: { position: { increment: 1 } },
       });
 
-      // Шаг 5: создаём новый placement
       return tx.bookPlacement.create({
         data: { bookId, shelfId: targetShelfId, position: newPosition },
         include: { book: true, shelf: true },
@@ -127,20 +105,20 @@ export class PlacementsService {
     });
   }
 
-  /**
-   * Убирает книгу с полки. Книга остаётся в каталоге (таблица books).
-   * Позиции соседних книг сдвигаются влево.
-   */
-  async remove(id: string) {
-    const placement = await this.prisma.bookPlacement.findUnique({ where: { id } });
-    if (!placement) {
+  /** Убирает книгу с полки. Проверяет, что placement принадлежит пользователю. */
+  async remove(id: string, userId: string) {
+    const placement = await this.prisma.bookPlacement.findUnique({
+      where: { id },
+      include: { book: { select: { userId: true } } },
+    });
+
+    if (!placement || placement.book.userId !== userId) {
       throw new NotFoundException(`Placement с ID ${id} не найден`);
     }
 
     return this.prisma.$transaction(async (tx) => {
       await tx.bookPlacement.delete({ where: { id } });
 
-      // Нормализуем позиции: сдвигаем всё, что было правее
       await tx.bookPlacement.updateMany({
         where: { shelfId: placement.shelfId, position: { gt: placement.position } },
         data: { position: { decrement: 1 } },
@@ -148,13 +126,19 @@ export class PlacementsService {
     });
   }
 
-  private async ensureBookExists(bookId: string) {
-    const exists = await this.prisma.book.findUnique({ where: { id: bookId }, select: { id: true } });
-    if (!exists) throw new NotFoundException(`Книга с ID ${bookId} не найдена`);
+  private async ensureBookOwned(bookId: string, userId: string) {
+    const book = await this.prisma.book.findFirst({
+      where: { id: bookId, userId },
+      select: { id: true },
+    });
+    if (!book) throw new NotFoundException(`Книга с ID ${bookId} не найдена`);
   }
 
-  private async ensureShelfExists(shelfId: string) {
-    const exists = await this.prisma.shelf.findUnique({ where: { id: shelfId }, select: { id: true } });
-    if (!exists) throw new NotFoundException(`Полка с ID ${shelfId} не найдена`);
+  private async ensureShelfOwned(shelfId: string, userId: string) {
+    const shelf = await this.prisma.shelf.findFirst({
+      where: { id: shelfId, bookcase: { userId } },
+      select: { id: true },
+    });
+    if (!shelf) throw new NotFoundException(`Полка с ID ${shelfId} не найдена`);
   }
 }

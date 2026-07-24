@@ -12,12 +12,12 @@ ORM: Prisma 6
 ### Диаграмма связей
 
 ```
-User (Phase 2)
+User
  └─── has many ──→ Bookcase
-                       └─── has many ──→ Shelf
-                                             └─── has many ──→ BookPlacement
-Book ─────────────────────────────────────────────────────────────↗
- └─── has one (optional) ──→ BookPlacement
+ │                     └─── has many ──→ Shelf
+ │                                           └─── has many ──→ BookPlacement
+ └─── has many ──→ Book ───────────────────────────────────────────↗
+                    └─── has one (optional) ──→ BookPlacement
 ```
 
 ---
@@ -44,17 +44,17 @@ Book ─────────────────────────
 | metadata | JSONB | NULL | Сырые данные из внешних API |
 | createdAt | TIMESTAMPTZ | NOT NULL, default now() | Дата добавления |
 | updatedAt | TIMESTAMPTZ | NOT NULL, auto-update | Дата обновления |
-| userId | UUID | NULL, FK → users.id | Владелец (Phase 2) |
+| userId | UUID | NULL, FK → users.id | Владелец книги |
 
 **Индексы:**
 - `idx_books_user_id` — быстрая выборка книг пользователя
-- `idx_books_title_author` — поиск по названию и автору (будущий ILIKE)
+- `idx_books_title_author` — поиск по названию и автору (ILIKE)
 - `idx_books_isbn` — уникальный поиск по ISBN
 
 **Примечания:**
 - `spineColor`: если NULL — цвет генерируется на фронте детерминированно из title+author
 - `metadata` (JSONB): хранит сырой ответ от Google Books / Open Library для F-11
-- `isbn` уникален только в контексте пользователя (Phase 2 — UNIQUE (isbn, userId))
+- `userId`: nullable для обратной совместимости со старыми записями; все новые записи получают userId из JWT-токена
 
 ---
 
@@ -69,7 +69,7 @@ Book ─────────────────────────
 | description | TEXT | NULL | Описание |
 | createdAt | TIMESTAMPTZ | NOT NULL, default now() | Дата создания |
 | updatedAt | TIMESTAMPTZ | NOT NULL, auto-update | Дата обновления |
-| userId | UUID | NULL, FK → users.id | Владелец (Phase 2) |
+| userId | UUID | NULL, FK → users.id | Владелец шкафа |
 
 **Индексы:**
 - `idx_bookcases_user_id` — быстрая выборка шкафов пользователя
@@ -121,7 +121,7 @@ Book ─────────────────────────
 
 ### `users`
 
-Аккаунты пользователей. Создаётся при регистрации; в Phase 2 связывается с books и bookcases через userId.
+Аккаунты пользователей. Создаётся при регистрации. Связан с books и bookcases через `userId` (F-09).
 
 | Поле | Тип | Ограничения | Описание |
 |---|---|---|---|

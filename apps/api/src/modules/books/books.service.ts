@@ -8,23 +8,18 @@ import { getOffset, buildPaginationMeta } from '../../shared/utils/pagination';
 /**
  * Сервис управления книгами.
  *
- * Связанные фичи: F-02 (CRUD), F-06 (список с фильтрацией)
+ * Все методы принимают userId — данные фильтруются по владельцу.
+ * Связанные фичи: F-02 (CRUD), F-06 (список с фильтрацией), F-09
  */
 @Injectable()
 export class BooksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Возвращает список книг с пагинацией, поиском и фильтрацией.
-   *
-   * Поиск по title и author — регистронезависимый (mode: 'insensitive').
-   * Пагинация — offset-based (подходит для текущего масштаба).
-   */
-  async findAll(query: QueryBooksDto) {
+  async findAll(query: QueryBooksDto, userId: string) {
     const { search, placed, genre, sortBy, order, page, limit } = query;
 
-    // Строим условие WHERE динамически
     const where = {
+      userId,
       ...(search && {
         OR: [
           { title: { contains: search, mode: 'insensitive' as const } },
@@ -32,7 +27,6 @@ export class BooksService {
         ],
       }),
       ...(genre && { genre: { equals: genre, mode: 'insensitive' as const } }),
-      // Фильтр по наличию на полке: placed=true → есть placement, false → нет
       ...(placed !== undefined && {
         placement: placed ? { isNot: null } : null,
       }),
@@ -43,7 +37,6 @@ export class BooksService {
       this.prisma.book.findMany({
         where,
         include: {
-          // Включаем данные о расположении книги
           placement: {
             include: {
               shelf: {
@@ -66,13 +59,13 @@ export class BooksService {
     };
   }
 
-  async create(dto: CreateBookDto) {
-    return this.prisma.book.create({ data: dto });
+  async create(dto: CreateBookDto, userId: string) {
+    return this.prisma.book.create({ data: { ...dto, userId } });
   }
 
-  async findOne(id: string) {
-    const book = await this.prisma.book.findUnique({
-      where: { id },
+  async findOne(id: string, userId: string) {
+    const book = await this.prisma.book.findFirst({
+      where: { id, userId },
       include: {
         placement: {
           include: {
@@ -91,22 +84,19 @@ export class BooksService {
     return book;
   }
 
-  async update(id: string, dto: UpdateBookDto) {
-    await this.ensureExists(id);
+  async update(id: string, dto: UpdateBookDto, userId: string) {
+    await this.ensureExists(id, userId);
     return this.prisma.book.update({ where: { id }, data: dto });
   }
 
-  /**
-   * Удаляет книгу.
-   * BookPlacement удаляется каскадно (настроено в Prisma schema).
-   */
-  async remove(id: string) {
-    await this.ensureExists(id);
+  async remove(id: string, userId: string) {
+    await this.ensureExists(id, userId);
     return this.prisma.book.delete({ where: { id } });
   }
 
-  async getAuthors(): Promise<string[]> {
+  async getAuthors(userId: string): Promise<string[]> {
     const results = await this.prisma.book.findMany({
+      where: { userId },
       distinct: ['author'],
       select: { author: true },
       orderBy: { author: 'asc' },
@@ -114,18 +104,21 @@ export class BooksService {
     return results.map((r) => r.author);
   }
 
-  async getGenres(): Promise<string[]> {
+  async getGenres(userId: string): Promise<string[]> {
     const results = await this.prisma.book.findMany({
+      where: { userId, genre: { not: null } },
       distinct: ['genre'],
       select: { genre: true },
-      where: { genre: { not: null } },
       orderBy: { genre: 'asc' },
     });
     return results.map((r) => r.genre!);
   }
 
-  private async ensureExists(id: string) {
-    const exists = await this.prisma.book.findUnique({ where: { id }, select: { id: true } });
+  private async ensureExists(id: string, userId: string) {
+    const exists = await this.prisma.book.findFirst({
+      where: { id, userId },
+      select: { id: true },
+    });
     if (!exists) {
       throw new NotFoundException(`Книга с ID ${id} не найдена`);
     }

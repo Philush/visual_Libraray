@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getMe, login as apiLogin, register as apiRegister } from '@/lib/api/auth';
 import { getStoredToken, setStoredToken, removeStoredToken } from '@/lib/api/client';
 import type { User, LoginPayload, RegisterPayload } from '@visual-library/types';
@@ -20,6 +21,7 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [state, setState] = useState<AuthState>({
     user: null,
     isLoading: true,
@@ -56,8 +58,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     removeStoredToken();
+    queryClient.clear();
     setState({ user: null, isLoading: false, isAuthenticated: false });
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ ...state, login, register, logout }}>

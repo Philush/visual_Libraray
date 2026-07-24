@@ -6,20 +6,25 @@ import {
   Query,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { ExportService } from './export.service';
 import { ImportService, type OnDuplicate } from './import.service';
 
 /**
  * Контроллер импорта/экспорта библиотеки.
  *
+ * Все маршруты защищены JWT. Данные экспортируются/импортируются для текущего пользователя (F-09).
+ *
  * Маршруты (все с глобальным префиксом /api/v1/):
- *   GET  /export/csv   — скачать все книги в CSV
- *   GET  /export/xlsx  — скачать все книги в XLSX
- *   GET  /export/json  — скачать полный снапшот (книги + placement) в JSON
+ *   GET  /export/csv   — скачать книги пользователя в CSV
+ *   GET  /export/xlsx  — скачать книги пользователя в XLSX
+ *   GET  /export/json  — скачать снапшот библиотеки пользователя в JSON
  *   POST /import/csv   — загрузить CSV файл с книгами
  *   POST /import/xlsx  — загрузить XLSX файл с книгами
  *   POST /import/json  — загрузить JSON файл (полное восстановление)
@@ -27,8 +32,9 @@ import { ImportService, type OnDuplicate } from './import.service';
  * Query-параметр ?onDuplicate=skip|update (default: skip) — для POST-эндпоинтов.
  * Файл передаётся через multipart/form-data, поле "file".
  *
- * Связанные фичи: F-07
+ * Связанные фичи: F-07, F-09
  */
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class ImportExportController {
   constructor(
@@ -39,16 +45,16 @@ export class ImportExportController {
   // ─── Export ───────────────────────────────────────────
 
   @Get('export/csv')
-  async exportCsv(@Res() res: Response) {
-    const buffer = await this.exportService.exportToCsv();
+  async exportCsv(@CurrentUser() userId: string, @Res() res: Response) {
+    const buffer = await this.exportService.exportToCsv(userId);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="library-${dateSuffix()}.csv"`);
     res.send(buffer);
   }
 
   @Get('export/xlsx')
-  async exportXlsx(@Res() res: Response) {
-    const buffer = await this.exportService.exportToXlsx();
+  async exportXlsx(@CurrentUser() userId: string, @Res() res: Response) {
+    const buffer = await this.exportService.exportToXlsx(userId);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -58,8 +64,8 @@ export class ImportExportController {
   }
 
   @Get('export/json')
-  async exportJson(@Res() res: Response) {
-    const data = await this.exportService.exportToJson();
+  async exportJson(@CurrentUser() userId: string, @Res() res: Response) {
+    const data = await this.exportService.exportToJson(userId);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="library-${dateSuffix()}.json"`);
     res.send(JSON.stringify(data, null, 2));
@@ -72,9 +78,10 @@ export class ImportExportController {
   async importCsv(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Query('onDuplicate') onDuplicate: OnDuplicate = 'skip',
+    @CurrentUser() userId: string,
   ) {
     if (!file) throw new BadRequestException('Файл не передан. Используй поле "file" в multipart/form-data.');
-    return this.importService.importFromCsv(file.buffer, normalizeOnDuplicate(onDuplicate));
+    return this.importService.importFromCsv(file.buffer, normalizeOnDuplicate(onDuplicate), userId);
   }
 
   @Post('import/xlsx')
@@ -82,9 +89,10 @@ export class ImportExportController {
   async importXlsx(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Query('onDuplicate') onDuplicate: OnDuplicate = 'skip',
+    @CurrentUser() userId: string,
   ) {
     if (!file) throw new BadRequestException('Файл не передан. Используй поле "file" в multipart/form-data.');
-    return this.importService.importFromXlsx(file.buffer, normalizeOnDuplicate(onDuplicate));
+    return this.importService.importFromXlsx(file.buffer, normalizeOnDuplicate(onDuplicate), userId);
   }
 
   @Post('import/json')
@@ -92,6 +100,7 @@ export class ImportExportController {
   async importJson(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Query('onDuplicate') onDuplicate: OnDuplicate = 'skip',
+    @CurrentUser() userId: string,
   ) {
     if (!file) throw new BadRequestException('Файл не передан. Используй поле "file" в multipart/form-data.');
 
@@ -102,16 +111,14 @@ export class ImportExportController {
       throw new BadRequestException('Невалидный JSON файл');
     }
 
-    return this.importService.importFromJson(data, normalizeOnDuplicate(onDuplicate));
+    return this.importService.importFromJson(data, normalizeOnDuplicate(onDuplicate), userId);
   }
 }
 
-/** Форматирует текущую дату как YYYY-MM-DD для имени файла */
 function dateSuffix(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Нормализует значение onDuplicate — защита от невалидных строк */
 function normalizeOnDuplicate(val: string): OnDuplicate {
   return val === 'update' ? 'update' : 'skip';
 }
