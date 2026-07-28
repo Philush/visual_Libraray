@@ -72,3 +72,17 @@ export const getBookAuthors = () => get<string[]>('/books/authors');
 
 /** Уникальные жанры для автокомплита */
 export const getBookGenres = () => get<string[]>('/books/genres');
+
+export interface BookCandidate {
+  title: string;
+  author: string;
+  isbn: string | null;
+  pageCount: number | null;
+  publishYear: number | null;
+  coverUrl: string | null;
+  description: string | null;
+}
+
+/** Поиск книг по названию/автору/ISBN через Google Books */
+export const lookupBooks = (q: string) =>
+  get<BookCandidate[]>(`/books/lookup?q=${encodeURIComponent(q)}`);

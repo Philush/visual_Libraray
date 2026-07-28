@@ -15,7 +15,8 @@ import { ImagePlus, X } from 'lucide-react';
 import { Modal, Button, Input, Textarea, StarRating, AutocompleteInput } from '@/components/ui';
 import { useCreateBook, useBookAuthors, useBookGenres } from '@/hooks/useBooks';
 import { generateSpineColor } from '@/lib/utils/spineColor';
-import { uploadBookCover } from '@/lib/api/books';
+import { uploadBookCover, type BookCandidate } from '@/lib/api/books';
+import { BookSearchBar } from './BookSearchBar';
 import { toast } from 'sonner';
 
 interface AddBookModalProps {
@@ -81,6 +82,19 @@ export function AddBookModal({ isOpen, onClose }: AddBookModalProps) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleLookupSelect = (book: BookCandidate) => {
+    setTitle(book.title);
+    setAuthor(book.author);
+    if (book.isbn) setIsbn(book.isbn);
+    if (book.pageCount) setPageCount(String(book.pageCount));
+    if (book.publishYear) setPublishYear(String(book.publishYear));
+    if (book.coverUrl) {
+      setCoverUrl(book.coverUrl);
+      setCoverPreview(book.coverUrl);
+    }
+    setErrors({});
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -127,6 +141,14 @@ export function AddBookModal({ isOpen, onClose }: AddBookModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Добавить книгу" className="sm:max-w-lg">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        {/* Автозаполнение из Google Books */}
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-gray-500">Найти и заполнить автоматически</span>
+          <BookSearchBar onSelect={handleLookupSelect} />
+        </div>
+
+        <hr className="border-gray-100" />
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Input

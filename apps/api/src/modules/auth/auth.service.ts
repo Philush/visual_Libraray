@@ -1,9 +1,11 @@
-import { Injectable, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import type { User } from '@prisma/client';
 
 const BCRYPT_ROUNDS = 10;
@@ -44,8 +46,28 @@ export class AuthService {
     return { user: this.sanitize(user), accessToken: this.sign(user) };
   }
 
-  getMe(user: User): SafeUser {
+  async getMe(userId: string): Promise<SafeUser> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException();
     return this.sanitize(user);
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<SafeUser> {
+    const updated = await this.usersService.update(userId, { name: dto.name });
+    return this.sanitize(updated);
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ message: string }> {
+    const user = await this.usersService.findById(userId);
+    if (!user) throw new UnauthorizedException();
+
+    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!valid) throw new BadRequestException('Неверный текущий пароль');
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
+    await this.usersService.update(userId, { passwordHash });
+
+    return { message: 'Пароль успешно изменён' };
   }
 
   private sign(user: User): string {

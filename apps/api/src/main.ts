@@ -19,10 +19,13 @@ async function bootstrap() {
   // Статические файлы — загруженные обложки книг
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
-  // CORS: разрешаем запросы с фронтенда.
-  // ALLOWED_ORIGINS задаётся через .env (несколько через запятую).
+  // CORS: в development разрешаем любой origin (IP меняется при смене сети).
+  // В production — только origins из ALLOWED_ORIGINS в .env.
+  const isDev = process.env.NODE_ENV !== 'production';
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? 'http://localhost:3000',
+    origin: isDev
+      ? true
+      : process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? 'http://localhost:3000',
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });

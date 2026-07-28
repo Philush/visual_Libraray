@@ -1,10 +1,11 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
-import { Request } from 'express';
+import { Controller, Post, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import type { User } from '@prisma/client';
+import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +26,21 @@ export class AuthController {
   /** GET /auth/me — данные текущего пользователя */
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe(@Req() req: Request & { user: User }) {
-    return this.authService.getMe(req.user);
+  getMe(@CurrentUser() userId: string) {
+    return this.authService.getMe(userId);
+  }
+
+  /** PATCH /auth/profile — изменить имя */
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  updateProfile(@CurrentUser() userId: string, @Body() dto: UpdateProfileDto) {
+    return this.authService.updateProfile(userId, dto);
+  }
+
+  /** PATCH /auth/password — изменить пароль */
+  @UseGuards(JwtAuthGuard)
+  @Patch('password')
+  changePassword(@CurrentUser() userId: string, @Body() dto: ChangePasswordDto) {
+    return this.authService.changePassword(userId, dto);
   }
 }

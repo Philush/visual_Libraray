@@ -9,8 +9,15 @@
  * Все методы взаимодействия с API строятся поверх этого клиента.
  */
 
-/** Базовый URL API из переменной окружения */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+/**
+ * Базовый URL API.
+ * В браузере строится динамически из текущего hostname — работает с любым IP без пересборки.
+ * На сервере (SSR) использует переменную окружения.
+ */
+export const API_BASE_URL =
+  typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1');
 
 /** Тип HTTP-ошибки от API */
 export class ApiError extends Error {

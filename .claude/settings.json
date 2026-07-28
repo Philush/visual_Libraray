@@ -15,7 +15,12 @@
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
       "Bash(xargs cat)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(lsof -ti:3000 -ti:3001)",
+      "Bash(cp -r /Users/philush/Desktop/tg_bots/visualLibrary/apps/web/.next/static /Users/philush/Desktop/tg_bots/visualLibrary/apps/web/.next/standalone/apps/web/.next/static)",
+      "Bash(cp -r /Users/philush/Desktop/tg_bots/visualLibrary/apps/web/public /Users/philush/Desktop/tg_bots/visualLibrary/apps/web/.next/standalone/apps/web/public)",
+      "Bash(node /Users/philush/Desktop/tg_bots/visualLibrary/apps/api/dist/main.js)",
+      "Bash(node /Users/philush/Desktop/tg_bots/visualLibrary/apps/web/.next/standalone/apps/web/server.js)"
     ]
   }
 }

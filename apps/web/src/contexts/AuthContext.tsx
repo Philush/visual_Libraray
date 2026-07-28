@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getMe, login as apiLogin, register as apiRegister } from '@/lib/api/auth';
+import { getMe, login as apiLogin, register as apiRegister, updateProfile as apiUpdateProfile } from '@/lib/api/auth';
 import { getStoredToken, setStoredToken, removeStoredToken } from '@/lib/api/client';
 import type { User, LoginPayload, RegisterPayload } from '@visual-library/types';
 
@@ -16,6 +16,7 @@ interface AuthContextValue extends AuthState {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -62,8 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({ user: null, isLoading: false, isAuthenticated: false });
   }, [queryClient]);
 
+  const updateUser = useCallback((user: User) => {
+    setState((prev) => ({ ...prev, user }));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout }}>
+    <AuthContext.Provider value={{ ...state, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

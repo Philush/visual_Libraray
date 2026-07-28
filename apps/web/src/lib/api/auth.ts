@@ -1,4 +1,4 @@
-import { API_BASE_URL } from './client';
+import { API_BASE_URL, patch } from './client';
 import type { AuthResponse, LoginPayload, RegisterPayload, User } from '@visual-library/types';
 
 async function authRequest<T>(path: string, body: unknown): Promise<T> {
@@ -31,3 +31,9 @@ export async function getMe(token: string): Promise<User> {
   if (!res.ok) throw new Error('Unauthorized');
   return res.json() as Promise<User>;
 }
+
+export const updateProfile = (name: string) =>
+  patch<User>('/auth/profile', { name });
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  patch<{ message: string }>('/auth/password', { currentPassword, newPassword });

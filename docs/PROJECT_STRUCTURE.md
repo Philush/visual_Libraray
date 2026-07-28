@@ -78,7 +78,8 @@ apps/web/
 │   │   │   └── BookFilters.tsx     # Панель поиска и фильтрации
 │   │   │
 │   │   ├── layout/                 # Компоненты лейаута
-│   │   │   ├── Header.tsx          # Логотип + имя пользователя + кнопка «Выйти»
+│   │   │   ├── Header.tsx          # Логотип + имя (клик → ProfileModal) + кнопка «Выйти»
+│   │   │   ├── ProfileModal.tsx    # Модалка профиля: смена имени + смена пароля (F-10)
 │   │   │   └── Sidebar.tsx
 │   │   │
 │   │   └── providers.tsx           # QueryClient + AuthProvider + Toaster (sonner)
@@ -89,13 +90,14 @@ apps/web/
 │   │   │   ├── BookDetailModal.tsx    # Детали книги: обложка, рейтинг, метаданные (UX-02)
 │   │   │   └── CreateBookcaseModal.tsx # Форма создания шкафа
 │   │   │
-│   │   └── books/                  # F-02, F-06, F-07
-│   │       ├── AddBookModal.tsx    # Форма добавления: обложка, рейтинг, автокомплит
+│   │   └── books/                  # F-02, F-06, F-07, F-11
+│   │       ├── AddBookModal.tsx    # Форма добавления: поиск (F-11), обложка, рейтинг, автокомплит
+│   │       ├── BookSearchBar.tsx   # Строка поиска Google Books с выпадающим списком (F-11)
 │   │       ├── EditBookModal.tsx   # Форма редактирования: обложка, рейтинг, автокомплит
 │   │       └── ImportExportPanel.tsx  # Панель импорта/экспорта (CSV, XLSX, JSON)
 │   │
 │   ├── contexts/
-│   │   └── AuthContext.tsx          # Глобальное состояние авторизации (user, token, login/logout)
+│   │   └── AuthContext.tsx          # Глобальное состояние авторизации (user, token, login/logout/updateUser)
 │   │
 │   ├── hooks/                      # TanStack Query хуки
 │   │   ├── useBookcases.ts         # CRUD шкафов + useCreateShelf + useDeleteShelf
@@ -105,8 +107,8 @@ apps/web/
 │   │
 │   └── lib/                        # Утилиты и инфраструктура
 │       ├── api/
-│       │   ├── client.ts           # fetch-клиент: Bearer-токен, обработка ошибок, getStoredToken
-│       │   ├── auth.ts             # login(), register(), getMe() — без JSON-клиента (multipart free)
+│       │   ├── client.ts           # fetch-клиент: динамический API_BASE_URL (window.location), Bearer-токен, обработка ошибок
+│       │   ├── auth.ts             # login(), register(), getMe(), updateProfile(), changePassword()
 │       │   ├── bookcases.ts        # API-методы для шкафов и полок
 │       │   ├── books.ts            # API-методы для книг + uploadBookCover + getBookAuthors/Genres
 │       │   ├── placements.ts       # API-методы для размещений
@@ -150,10 +152,11 @@ apps/api/
 │   │   │       ├── create-shelf.dto.ts
 │   │   │       └── update-shelf.dto.ts
 │   │   │
-│   │   ├── books/                  # Книги (F-02, F-06)
+│   │   ├── books/                  # Книги (F-02, F-06, F-11)
 │   │   │   ├── books.module.ts
 │   │   │   ├── books.controller.ts
 │   │   │   ├── books.service.ts
+│   │   │   ├── book-lookup.service.ts    # Запрос к Google Books API + нормализация (F-11)
 │   │   │   └── dto/
 │   │   │       ├── create-book.dto.ts
 │   │   │       ├── update-book.dto.ts
@@ -173,21 +176,23 @@ apps/api/
 │   │   │   ├── import.service.ts         # Логика импорта CSV/XLSX/JSON
 │   │   │   └── export.service.ts         # Логика экспорта CSV/XLSX/JSON
 │   │   │
-│   │   ├── auth/                   # Авторизация (F-08)
+│   │   ├── auth/                   # Авторизация (F-08, F-10)
 │   │   │   ├── auth.module.ts
-│   │   │   ├── auth.controller.ts        # POST /auth/register|login, GET /auth/me
-│   │   │   ├── auth.service.ts           # register, login, getMe, bcrypt, JWT sign
+│   │   │   ├── auth.controller.ts        # register|login|me|profile|password
+│   │   │   ├── auth.service.ts           # register, login, getMe, updateProfile, changePassword
 │   │   │   ├── strategies/
 │   │   │   │   └── jwt.strategy.ts       # PassportStrategy: валидация Bearer-токена
 │   │   │   ├── guards/
 │   │   │   │   └── jwt-auth.guard.ts     # @UseGuards(JwtAuthGuard) для защиты эндпоинтов
 │   │   │   └── dto/
 │   │   │       ├── register.dto.ts
-│   │   │       └── login.dto.ts
+│   │   │       ├── login.dto.ts
+│   │   │       ├── update-profile.dto.ts # PATCH /auth/profile — смена имени
+│   │   │       └── change-password.dto.ts # PATCH /auth/password — смена пароля
 │   │   │
 │   │   └── users/                  # Пользователи (F-08, F-10)
 │   │       ├── users.module.ts
-│   │       └── users.service.ts          # findById, findByEmail, create
+│   │       └── users.service.ts          # findById, findByEmail, create, update
 │   │
 │   ├── shared/                     # Общий код для всех модулей
 │   │   ├── decorators/

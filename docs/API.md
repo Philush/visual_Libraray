@@ -1,8 +1,12 @@
 # API Reference — Visual Library
 
-**Base URL:** `http://localhost:3001/api/v1` (development)
+**Base URL (localhost):** `http://localhost:3001/api/v1`
+**Base URL (локальная сеть):** `http://<IP-машины>:3001/api/v1` — подставляется автоматически клиентом
 **Format:** JSON
 **Версионирование:** URI-based (`/api/v1/`)
+
+**CORS:** в `development` (`NODE_ENV != production`) API разрешает запросы с любого origin.
+В `production` — только домены из переменной `ALLOWED_ORIGINS` в `.env`.
 
 ---
 
@@ -69,7 +73,7 @@ Authorization: Bearer <accessToken>
 ## Auth — Авторизация
 
 `POST /auth/register` и `POST /auth/login` — публичные (токен не нужен).
-`GET /auth/me` — требует `Authorization: Bearer <token>`.
+`GET /auth/me`, `PATCH /auth/profile`, `PATCH /auth/password` — требуют `Authorization: Bearer <token>`.
 
 ---
 
@@ -142,6 +146,43 @@ Authorization: Bearer <accessToken>
 
 **Ошибки:**
 - 401 Unauthorized — токен отсутствует, истёк или недействителен
+
+---
+
+### PATCH /auth/profile
+
+Обновить отображаемое имя пользователя. Требует токен.
+
+**Request body:**
+```json
+{
+  "name": "Новое имя"   // optional, max 100 символов
+}
+```
+
+**Response 200:** объект пользователя (без passwordHash)
+
+---
+
+### PATCH /auth/password
+
+Изменить пароль. Требует токен и текущий пароль.
+
+**Request body:**
+```json
+{
+  "currentPassword": "старый пароль",   // required
+  "newPassword": "новый пароль"         // required, min 6 символов
+}
+```
+
+**Response 200:**
+```json
+{ "message": "Пароль успешно изменён" }
+```
+
+**Ошибки:**
+- 400 Bad Request — неверный текущий пароль
 
 ---
 
@@ -348,6 +389,32 @@ Authorization: Bearer <accessToken>
   }
 }
 ```
+
+---
+
+### GET /books/lookup
+
+Поиск книги по названию, автору или ISBN через Open Library API. Используется для автозаполнения формы добавления книги.
+
+**Query params:**
+- `q` — строка поиска (обязательно, мин. 2 символа)
+
+**Response 200:**
+```json
+[
+  {
+    "title": "Мастер и Маргарита",
+    "author": "Михаил Булгаков",
+    "isbn": "9785170902972",
+    "pageCount": 480,
+    "publishYear": 1967,
+    "coverUrl": "https://books.google.com/books/content?id=...",
+    "description": "Роман Булгакова..."
+  }
+]
+```
+
+Возвращает до 7 результатов. При недоступности Open Library — пустой массив.
 
 ---
 

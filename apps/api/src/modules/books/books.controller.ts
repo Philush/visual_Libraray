@@ -23,6 +23,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
 import { BooksService } from './books.service';
+import { BookLookupService } from './book-lookup.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 import { QueryBooksDto } from './dto/query-books.dto';
@@ -50,7 +51,10 @@ import { QueryBooksDto } from './dto/query-books.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('books')
 export class BooksController {
-  constructor(private readonly booksService: BooksService) {}
+  constructor(
+    private readonly booksService: BooksService,
+    private readonly bookLookupService: BookLookupService,
+  ) {}
 
   @Get()
   findAll(@Query() query: QueryBooksDto, @CurrentUser() userId: string) {
@@ -65,6 +69,12 @@ export class BooksController {
   @Get('genres')
   getGenres(@CurrentUser() userId: string) {
     return this.booksService.getGenres(userId);
+  }
+
+  @Get('lookup')
+  lookup(@Query('q') q: string) {
+    if (!q?.trim()) return [];
+    return this.bookLookupService.search(q.trim());
   }
 
   @Post('upload-cover')

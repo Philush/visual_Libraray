@@ -17,4 +17,8 @@ export class UsersService {
   async create(data: { email: string; passwordHash: string; name?: string }): Promise<User> {
     return this.prisma.user.create({ data });
   }
+
+  async update(id: string, data: { name?: string; passwordHash?: string }): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data });
+  }
 }
