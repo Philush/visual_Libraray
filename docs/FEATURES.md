@@ -455,16 +455,19 @@ DragOverlay при перетаскивании теперь используе�
 6. Результаты кэшируются TanStack Query (5 минут)
 
 **Компоненты:**
-- `BookLookupService` (`books/book-lookup.service.ts`) — запрос к Open Library API, нормализация ответа
+- `BookLookupService` (`books/book-lookup.service.ts`) — Google Books как основной источник, Open Library как fallback; нормализация ответа в единый формат
 - `GET /books/lookup?q=...` в `BooksController` — проксирует поиск (требует JWT)
 - `BookSearchBar` (`features/books/BookSearchBar.tsx`) — строка поиска с выпадающим списком
 - `AddBookModal` — интегрирован `BookSearchBar` в верхней части формы
 
+**Конфигурация:**
+- `GOOGLE_BOOKS_API_KEY` в `apps/api/.env` — ключ Google Books API (бесплатно, 1000 req/day). При отсутствии ключа автоматически используется Open Library.
+
 **Edge cases:**
 - Менее 2 символов → запрос не отправляется
-- Google Books не вернул результатов → пустой список (без ошибки)
-- Google Books недоступен → пустой список, форма остаётся работоспособной
-- Обложка из Google Books подставляется как URL (не загружается на сервер)
+- Google Books недоступен или нет ключа → автоматический fallback на Open Library
+- Оба источника недоступны → пустой список (без ошибки), форма остаётся работоспособной
+- Обложка подставляется как URL (не загружается на сервер)
 
 ---
 

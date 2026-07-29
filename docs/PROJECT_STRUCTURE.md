@@ -276,6 +276,10 @@ ALLOWED_ORIGINS="http://localhost:3000"
 
 # JWT секрет для подписи токенов (в prod — случайная строка 32+ символа)
 JWT_SECRET="dev-secret-change-in-production"
+
+# Google Books API key (опционально, F-11)
+# Без ключа поиск книг работает через Open Library (fallback)
+GOOGLE_BOOKS_API_KEY=your_key_here
 ```
 
 ### apps/web/.env.local
