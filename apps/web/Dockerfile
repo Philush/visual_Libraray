@@ -10,32 +10,10 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/types/package.json ./packages/types/
 COPY apps/web/package.json ./apps/web/
 
-# pnpm 10+ blocks build scripts by default.
-# pnpm-workspace.yaml — для старых версий pnpm 10
-RUN { echo 'packages:'; \
-      echo '  - apps/*'; \
-      echo '  - packages/*'; \
-      echo ''; \
-      echo 'onlyBuiltDependencies:'; \
-      echo '  - "@nestjs/core"'; \
-      echo '  - "@prisma/client"'; \
-      echo '  - "@prisma/engines"'; \
-      echo '  - bcrypt'; \
-      echo '  - prisma'; \
-      echo '  - sharp'; \
-      echo '  - unrs-resolver'; } > pnpm-workspace.yaml
-
-# pnpm.yaml — для новых версий pnpm 10+
-RUN { echo 'onlyBuiltDependencies:'; \
-      echo '  - "@nestjs/core"'; \
-      echo '  - "@prisma/client"'; \
-      echo '  - "@prisma/engines"'; \
-      echo '  - bcrypt'; \
-      echo '  - prisma'; \
-      echo '  - sharp'; \
-      echo '  - unrs-resolver'; } > pnpm.yaml
-
-RUN pnpm --version && pnpm install --frozen-lockfile
+# pnpm 11 blocks all build scripts by default and ignores onlyBuiltDependencies in config files.
+# Workaround: install without scripts, then explicitly rebuild only the packages that need it.
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild sharp unrs-resolver
 
 COPY packages/types ./packages/types
 COPY apps/web ./apps/web
