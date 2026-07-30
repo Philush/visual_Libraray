@@ -38,7 +38,8 @@
 ┌─────────────────────────────────────────────────────┐
 │                    Client (Browser)                  │
 │                    Next.js 16 SPA/SSR                │
-│         React + Tailwind + @dnd-kit + Zustand        │
+│           React + Tailwind + @dnd-kit                │
+│         TanStack Query + AuthContext                 │
 └──────────────────────┬──────────────────────────────┘
                        │ HTTP/REST (JSON)
                        ▼
@@ -51,9 +52,8 @@
 │   └──────────┘ └──────────┘ └──────────────────┘   │
 │   ┌────────────────────┐ ┌──────────┐ ┌──────────┐ │
 │   │  Import/Export     │ │  Users   │ │   Auth   │ │
-│   │  Module  (F-07)    │ │  Module  │ │  Module  │ │
+│   │     Module         │ │  Module  │ │  Module  │ │
 │   └────────────────────┘ └──────────┘ └──────────┘ │
-│                           ↑ будущие модули           │
 │                    │                                 │
 │                  Prisma ORM                          │
 └──────────────────────┬──────────────────────────────┘
@@ -75,8 +75,8 @@
 app/           → роутинг, страницы (Next.js App Router)
 components/    → UI-компоненты (разделены на ui/ и доменные)
 features/      → feature-модули (логика + компоненты конкретной фичи)
-store/         → глобальное состояние (Zustand)
-hooks/         → переиспользуемые React-хуки
+contexts/      → глобальное состояние (AuthContext)
+hooks/         → TanStack Query хуки и переиспользуемые утилиты
 lib/           → API-клиент, утилиты, константы
 ```
 
@@ -148,7 +148,7 @@ Docker Compose запускает PostgreSQL. Frontend и Backend запуска
 - **Сервисы:** postgres, migrate (one-shot), api, web, nginx
 - **Reverse proxy:** Nginx → `/api/*` → api:3001, `/` → web:3000
 - **Запуск:** `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
-- Подробная инструкция → [docs/DEPLOYMENT.md](./DEPLOYMENT.md)
+- Подробная инструкция → [README.md](../README.md)
 
 ### Будущее (при росте)
 
@@ -168,7 +168,7 @@ Docker Compose запускает PostgreSQL. Frontend и Backend запуска
 | REST | GraphQL | GraphQL избыточен для этого масштаба |
 | Next.js | Vite SPA | SSR/SEO для будущего публичного сервиса |
 | @dnd-kit | react-dnd | Модульнее, поддержка touch, активно поддерживается |
-| Zustand | Redux | Проще для одного разработчика, достаточно для масштаба |
+| TanStack Query + AuthContext | Redux / Zustand | Server state через Query, минимальный client state через Context |
 | CSS/DOM визуализация | Canvas (Konva.js) | Нативный DnD, доступность, проще анимировать |
 
 ---
