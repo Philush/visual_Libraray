@@ -22,7 +22,11 @@ COPY apps/api ./apps/api
 RUN pnpm --filter @visual-library/api exec prisma generate
 RUN pnpm --filter @visual-library/api run build
 
-# ─── Stage 2: Production ─────────────────────────────────────────────────────
+# ─── Stage 2: Migrate (one-shot, has pnpm to resolve prisma binary) ──────────
+FROM builder AS migrate
+WORKDIR /app
+
+# ─── Stage 3: Production ─────────────────────────────────────────────────────
 FROM node:22-alpine AS production
 
 WORKDIR /app

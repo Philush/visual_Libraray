@@ -40,9 +40,18 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      # migrate-стейдж = builder: pnpm установлен и корректно резолвит бинарники
+      target: migrate
     container_name: vl_migrate
-    # prisma лежит в /app/node_modules/.bin/ (скопирован из builder)
-    command: ['sh', '-c', 'node /app/node_modules/.bin/prisma db push --schema=/app/apps/api/prisma/schema.prisma --skip-generate']
+    command:
+      - pnpm
+      - --filter
+      - '@visual-library/api'
+      - exec
+      - prisma
+      - db
+      - push
+      - --skip-generate
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     depends_on:
