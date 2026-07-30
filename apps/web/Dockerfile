@@ -10,6 +10,20 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages/types/package.json ./packages/types/
 COPY apps/web/package.json ./apps/web/
 
+# pnpm 10+ blocks build scripts by default; list allowed packages explicitly
+RUN { echo 'packages:'; \
+      echo '  - apps/*'; \
+      echo '  - packages/*'; \
+      echo ''; \
+      echo 'onlyBuiltDependencies:'; \
+      echo "  - '@nestjs/core'"; \
+      echo "  - '@prisma/client'"; \
+      echo "  - '@prisma/engines'"; \
+      echo '  - bcrypt'; \
+      echo '  - prisma'; \
+      echo '  - sharp'; \
+      echo '  - unrs-resolver'; } > pnpm-workspace.yaml
+
 RUN pnpm install --frozen-lockfile
 
 COPY packages/types ./packages/types
