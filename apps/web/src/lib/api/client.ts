@@ -14,10 +14,13 @@
  * В браузере строится динамически из текущего hostname — работает с любым IP без пересборки.
  * На сервере (SSR) использует переменную окружения.
  */
+// NEXT_PUBLIC_API_URL приоритетнее — задаётся при сборке и корректно учитывает прокси (Nginx).
+// Фолбэк на динамический hostname нужен только для локальной разработки без .env.local.
 export const API_BASE_URL =
-  typeof window !== 'undefined'
+  process.env.NEXT_PUBLIC_API_URL ??
+  (typeof window !== 'undefined'
     ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
-    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1');
+    : 'http://localhost:3001/api/v1');
 
 /** Тип HTTP-ошибки от API */
 export class ApiError extends Error {
