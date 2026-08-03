@@ -24,7 +24,7 @@
 ### Требования
 
 - Node.js 22+
-- pnpm 10+
+- pnpm 11+
 - Docker & Docker Compose
 
 ### Установка

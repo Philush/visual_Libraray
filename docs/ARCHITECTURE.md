@@ -150,6 +150,74 @@ Docker Compose запускает PostgreSQL. Frontend и Backend запуска
 - **Запуск:** `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build`
 - Подробная инструкция → [README.md](../README.md)
 
+#### Docker-образы: трёхстейдж-сборка
+
+**API** (`apps/api/Dockerfile`) использует три стейджа:
+
+| Стейдж | Назначение |
+|---|---|
+| `builder` | Устанавливает зависимости, генерирует Prisma-клиент, компилирует TS |
+| `migrate` | Наследует `builder` — pnpm доступен для корректного резолва бинарников Prisma |
+| `production` | Минимальный образ node:22-alpine, только артефакты сборки |
+
+Сервис `migrate` в `docker-compose.prod.yml` использует `target: migrate` и запускает
+`pnpm exec prisma db push` — после успешного завершения контейнер выходит с кодом 0.
+API-контейнер стартует только после `service_completed_successfully`.
+
+**pnpm 11 — важное отличие от pnpm 9/10:**
+
+pnpm 11 блокирует все build-скрипты по умолчанию и игнорирует поле
+`onlyBuiltDependencies` в любых конфиг-файлах. Workaround в Dockerfile:
+
+```dockerfile
+# Установка без скриптов, затем явная пересборка только нужных пакетов
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm rebuild @nestjs/core @prisma/client @prisma/engines prisma bcrypt  # для api
+# или:
+RUN pnpm rebuild sharp unrs-resolver  # для web
+```
+
+**pnpm workspace и production-образ:**
+
+В pnpm workspace зависимости пакета доступны через два слоя:
+- `node_modules/.pnpm/` — виртуальный стор (общий для всего монорепо)
+- `apps/api/node_modules/` — симлинки конкретного пакета на стор
+
+В production-образ нужно копировать оба слоя, иначе `Cannot find module` при старте:
+
+```dockerfile
+COPY --from=builder /app/node_modules ./node_modules          # виртуальный стор
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules  # симлинки
+```
+
+#### NEXT_PUBLIC_API_URL — bake-time переменная
+
+`NEXT_PUBLIC_API_URL` передаётся в web-образ как `ARG` и запекается в JS-бандл Next.js
+во время сборки. После сборки изменить его без пересборки образа невозможно.
+
+В production это должен быть URL с публичным IP/доменом через Nginx (порт 80):
+```
+NEXT_PUBLIC_API_URL=http://<ваш-ip>/api/v1
+```
+
+Порт 3001 (API) не пробрасывается наружу — только через Nginx на порту 80.
+Если указать `hostname:3001` — браузер попытается подключиться напрямую и получит таймаут.
+
+В разработке `NEXT_PUBLIC_API_URL` не задаётся, и `client.ts` использует fallback на
+динамический `window.location.hostname:3001`, что позволяет работать с любого IP в сети.
+
+#### Healthcheck API
+
+API-контейнер использует Node.js для healthcheck (вместо wget/curl, которых нет в Alpine):
+
+```
+GET /api/v1/auth/me → 401 (токен не передан) → сервер жив → exit 0
+GET /api/v1/auth/me → 5xx                    → сервер упал → exit 1
+```
+
+Эндпоинт `/auth/me` всегда отвечает (200 или 401) — любой статус < 500 означает,
+что сервер запущен и обрабатывает запросы.
+
 ### Будущее (при росте)
 
 - Добавление Redis для кэширования и сессий
